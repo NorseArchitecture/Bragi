@@ -1,0 +1,16 @@
+@using Norse.Abstractions.Components
+
+@attribute [Stories("Primitives/Loader")]
+
+<Stories TComponent="Loader">
+	<Story Name="Default">
+		<Template>
+			<Loader @attributes="context.Args" />
+		</Template>
+	</Story>
+	<Story Name="Custom Label">
+		<Template>
+			<Loader Label="Fetching widgets…" @attributes="context.Args" />
+		</Template>
+	</Story>
+</Stories>

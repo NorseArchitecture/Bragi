@@ -1,0 +1,19 @@
+<Solution>
+	<Folder Name="/Solution Items/">
+		<File Path=".editorconfig" />
+		<File Path=".gitattributes" />
+		<File Path=".gitignore" />
+		<File Path="Directory.Build.props" />
+		<File Path="global.json" />
+		<File Path="LICENSE" />
+	</Folder>
+	<Folder Name="/src/">
+		<File Path="src/Directory.Build.props" />
+		<File Path="src/Directory.Build.targets" />
+		<Project Path="src/DesignSystem.Stories/DesignSystem.Stories.csproj" />
+	</Folder>
+	<Folder Name="/tests/">
+		<File Path="tests/Directory.Build.props" />
+		<File Path="tests/Directory.Build.targets" />
+	</Folder>
+</Solution>

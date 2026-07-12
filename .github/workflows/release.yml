@@ -1,0 +1,23 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+  security-events: write
+  pull-requests: write 
+
+jobs:
+  release:
+    uses: NorseArchitecture/.github/.github/workflows/release-nuget.yml@master
+    secrets: inherit
+
+  sound-gjallarhorn:
+    needs: [release]
+    uses: NorseArchitecture/.github/.github/workflows/sound-gjallarhorn.yml@master
+    secrets:
+      token: ${{ secrets.SCATTER_PAT }}
