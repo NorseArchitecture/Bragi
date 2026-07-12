@@ -15,5 +15,6 @@
 	<Folder Name="/tests/">
 		<File Path="tests/Directory.Build.props" />
 		<File Path="tests/Directory.Build.targets" />
+		<Project Path="tests/DesignSystem.Stories.Tests/DesignSystem.Stories.Tests.csproj" />
 	</Folder>
 </Solution>

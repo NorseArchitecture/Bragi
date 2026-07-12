@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\DesignSystem.Stories\DesignSystem.Stories.csproj" />
+	</ItemGroup>
+</Project>
