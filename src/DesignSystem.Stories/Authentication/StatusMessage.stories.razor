@@ -1,0 +1,11 @@
+@using Norse.AuthN.Components.Shared
+
+@attribute [Stories("Authentication/StatusMessage")]
+
+<Stories TComponent="StatusMessage">
+	<Story Name="Default">
+		<Template>
+			<StatusMessage @attributes="context.Args" />
+		</Template>
+	</Story>
+</Stories>
