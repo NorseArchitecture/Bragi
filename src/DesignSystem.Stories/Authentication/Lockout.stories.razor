@@ -1,0 +1,11 @@
+@using Norse.AuthN.Components.Pages
+
+@attribute [Stories("Authentication/Lockout")]
+
+<Stories TComponent="Lockout">
+	<Story Name="Default">
+		<Template>
+			<Lockout @attributes="context.Args" />
+		</Template>
+	</Story>
+</Stories>
