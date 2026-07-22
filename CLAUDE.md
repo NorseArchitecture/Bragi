@@ -2,21 +2,13 @@
 
 ## 0. Wrong Root — Halt
 
-If you are reading this because **Bragi itself is the Claude Code session root** — someone ran `claude` from inside this directory instead of `../Bifrost` — stop here. Do not read further, do not propose changes, do not run anything.
+Session root must be **Bifröst**, not this repo directly — org-wide settings (`superpowers`, permission rules) only apply from the actual root, and Claude Code never merges a submodule's own `.claude/settings.json` into a parent-launched session. If `claude` was run from inside **Bragi**, stop: don't read further, don't propose changes, don't run anything — tell the user to `cd ../Bifrost` and start there. (This repo's `.claude/settings.json` carries a `SessionStart` hook meant to block this before you ever see this file; if you're reading this anyway, the hook was bypassed, disabled, or failed — halt regardless.)
 
-Tell the user: every Norse Architecture session starts from **Bifrost**. Org-wide settings (the `superpowers` plugin, permission rules) only apply when Bifrost is the actual session root — Claude Code never merges a submodule's own `.claude/settings.json` into a parent-launched session. Exit, `cd ../Bifrost`, and run `claude` there instead.
-
-This repo's own `.claude/settings.json` carries a `SessionStart` hook that should already have blocked this session before this file was ever read. If you're reading this anyway, hooks were bypassed, disabled, or failed — halt regardless; this rule does not depend on the hook to hold.
-
----
-
-> **Do not commit, push, or rewrite git history.** Stage edits (`git add`), show the diff, and stop — the human reviews and commits.
-
-> **Use US English spelling** in code, identifiers, comments, docs, and commit/PR copy.
+> **Do not commit, push, or rewrite git history** — stage (`git add`), show the diff, stop; the human reviews and commits. This applies even when a skill's flow includes a commit step. **US English spelling** everywhere — code, comments, docs, commits.
 
 ## 1. What This Repository Is
 
-Bragi is the story: **`Norse.DesignSystem.Stories`** — a content-only Razor Class Library of `.stories.razor` catalog pages and Markdown documentation (via `MD2RazorGenerator`) for the platform's Blazor components. It carries a `BlazingStory` package reference purely for the `.stories.razor` authoring API — that's a content-authoring dependency, not a hosting one — and a `NorseRef` to Asgard's `Abstractions.Components` so its stories can preview the headless primitives directly (`AuthN.Components.FluentUI` / `ReferenceData.Components.FluentUI` once those realms ship).
+Bragi is the story: **`Norse.DesignSystem.Stories`** — a content-only Razor Class Library of `.stories.razor` catalog pages and Markdown documentation (via `MD2RazorGenerator`) for the platform's Blazor components. It carries a `BlazingStory` package reference purely for the `.stories.razor` authoring API — that's a content-authoring dependency, not a hosting one — and a `NorseRef` to Asgard's `Abstractions.Components` so its stories can preview the headless primitives directly. `AuthN.Components.FluentUI` (Heimdall) is already referenced and previewed — ten Authentication stories (Login, Register, Logout, Lockout, and their siblings) ship today; `ReferenceData.Components.FluentUI` (Mímir) remains future work once that realm ships.
 
 Bragi ships no runnable app of its own. Yggdrasil owns the runtime: `Hosting.Stories.Client` (`Microsoft.NET.Sdk.BlazorWebAssembly`) is the **only** project holding the `NorseRef` to this repo's `DesignSystem.Stories` — everything Bragi references rides in transitively — and `Hosting.Stories.Server` is the ordinary ASP.NET Core process that serves it, dockerized and published to `ghcr.io/norsearchitecture/hosting/stories`.
 

@@ -8,7 +8,7 @@
 
 Bragi is the story: **`Norse.DesignSystem.Stories`** — a content-only Razor Class Library of `.stories.razor` catalog pages and Markdown documentation for the platform's Blazor components. Bragi doesn't build the ship; he sings of everything aboard it.
 
-It carries a `BlazingStory` package reference purely for the `.stories.razor` authoring API, and references Asgard's `Abstractions.Components` directly so its stories can preview the headless primitives (`AuthN.Components.FluentUI` / `ReferenceData.Components.FluentUI` once those realms ship). Bragi ships no runnable app of its own — Yggdrasil hosts the runnable BlazingStory catalog built from it (`Hosting.Stories.Client`/`.Server`), published as a container to `ghcr.io/norsearchitecture/hosting/stories`.
+It carries a `BlazingStory` package reference purely for the `.stories.razor` authoring API, and references Asgard's `Abstractions.Components` directly so its stories can preview the headless primitives. `AuthN.Components.FluentUI` (Heimdall) is already referenced and previewed — ten Authentication stories ship today; `ReferenceData.Components.FluentUI` (Mímir) remains future work once that realm ships. Bragi ships no runnable app of its own — Yggdrasil hosts the runnable BlazingStory catalog built from it (`Hosting.Stories.Client`/`.Server`), published as a container to `ghcr.io/norsearchitecture/hosting/stories`.
 
 ## Status
 
