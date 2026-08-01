@@ -2,7 +2,9 @@
 
 > Bragi, skaldic god of poetry, keeper of every tale worth telling.
 
-![Bragi — the skaldic god of poetry, master of eloquence, welcoming the honored dead into Valhalla with song](https://github.com/user-attachments/assets/7596c242-e424-4746-bb33-5e5151c8a0de "Bragi — the skald who sings of everything aboard the ship")
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7596c242-e424-4746-bb33-5e5151c8a0de" alt="Bragi — the skaldic god of poetry, master of eloquence, welcoming the honored dead into Valhalla with song" title="Bragi — the skald who sings of everything aboard the ship" />
+</p>
 
 *Image credit: [@norsemythologyclips](https://www.instagram.com/norsemythologyclips/) — go follow them.*
 
