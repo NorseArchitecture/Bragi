@@ -1,8 +1,13 @@
 @attribute [Stories("Authentication/Register")]
+@using Microsoft.AspNetCore.Components
 <Stories TComponent="Register">
     <Story Name="Default">
         <Template>
-            <Register @attributes="context.Args" />
+            @* Register only renders inside GateLayout's 280px column in production -- see Login.stories.razor
+               for why the story wraps it in LayoutView by hand. *@
+            <LayoutView Layout="typeof(GateLayout)">
+                <Register @attributes="context.Args" />
+            </LayoutView>
         </Template>
     </Story>
 </Stories>

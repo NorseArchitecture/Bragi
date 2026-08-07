@@ -1,8 +1,13 @@
 @attribute [Stories("Authentication/StatusMessage")]
 <Stories TComponent="StatusMessage">
-    <Story Name="Default">
+    <Story Name="Success">
         <Template>
-            <StatusMessage @attributes="context.Args" />
+            <StatusMessage Message="Your password has been changed." @attributes="context.Args" />
+        </Template>
+    </Story>
+    <Story Name="Error">
+        <Template>
+            <StatusMessage Message="Error: invalid email or password." @attributes="context.Args" />
         </Template>
     </Story>
 </Stories>

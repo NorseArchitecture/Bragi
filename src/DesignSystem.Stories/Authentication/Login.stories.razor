@@ -1,8 +1,14 @@
 @attribute [Stories("Authentication/Login")]
+@using Microsoft.AspNetCore.Components
 <Stories TComponent="Login">
     <Story Name="Default">
         <Template>
-            <Login @attributes="context.Args" />
+            @* Login only renders inside GateLayout's 280px column in production -- @layout is a routing-time
+               concern the Router applies via RouteView, never triggered by direct instantiation like this, so
+               the story wraps it in LayoutView by hand to match what actually ships. *@
+            <LayoutView Layout="typeof(GateLayout)">
+                <Login @attributes="context.Args" />
+            </LayoutView>
         </Template>
     </Story>
 </Stories>
