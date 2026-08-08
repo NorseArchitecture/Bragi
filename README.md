@@ -33,7 +33,7 @@ The trick is that these components never talk to a service directly — they tal
 
 What that buys you: every state a component can be in becomes triggerable on demand, with zero setup. Type `fail@example.com` into the Login story's own email field and the real component renders the real invalid-credentials failure, drawn exactly as production would draw it — no test account, no server, no engineer on call. You're styling the true component in the true state, with none of the machinery.
 
-Today one sentinel exists (that email address). The intent is a full inventory — a trigger for every failure the real service can produce, plus a catalog page listing them so the triggers live where you already are — and that's designed work, deliberately pending. The plumbing itself stays out of sight: the host wires the fakes with a single call ([`AddNorseStoryFakes()`](src/DesignSystem.Stories/Authentication/ServiceCollectionExtensions.cs)) and knows nothing else about them.
+Today one sentinel exists (that email address). The intent is a full inventory — a trigger for every failure the real service can produce, plus a catalog page listing them so the triggers live where you already are — and that's designed work, deliberately pending. The plumbing itself stays out of sight: the host wires the fakes with a single call ([`AddNorseStoryFakes()`](src/DesignSystem.Stories/ServiceCollectionExtensions.cs)) and knows nothing else about them.
 
 ## Build and test
 
