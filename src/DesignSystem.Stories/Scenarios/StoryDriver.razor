@@ -1,0 +1,53 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@ChildContent
+
+@code {
+	IJSObjectReference? _module;
+
+	/// <summary>How to drive the wrapped form. Required — <see cref="StoryDriverMode.Unspecified" /> throws.</summary>
+	[Parameter, EditorRequired]
+	public StoryDriverMode Mode { get; set; }
+
+	/// <summary>The email fill value (FillAndSubmit only).</summary>
+	[Parameter]
+	public string Email { get; set; } = "designer@example.com";
+
+	/// <summary>
+	///     The password fill value (FillAndSubmit only). Defaults to the spec-prescribed "aaaaaaaa"
+	///     fixture — passes client-side MinimumLength(8) so the submit reaches the fake, and matches
+	///     the RegistrationValidation canonical dictionary by construction.
+	/// </summary>
+	[Parameter]
+	public string Password { get; set; } = "aaaaaaaa";
+
+	/// <summary>The story canvas this driver wraps.</summary>
+	[Parameter]
+	public RenderFragment? ChildContent { get; set; }
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender)
+			return;
+		if (Mode is StoryDriverMode.Unspecified)
+			throw new InvalidOperationException("StoryDriver requires an explicit mode.");
+		_module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Norse.DesignSystem.Stories/storyDriver.js");
+		var driven = await _module.InvokeAsync<bool>("drive", Mode is StoryDriverMode.FillAndSubmit, Email, Password);
+		if (!driven)
+			throw new InvalidOperationException("StoryDriver found no form to drive.");
+	}
+
+	public async ValueTask DisposeAsync()
+	{
+		if (_module is null)
+			return;
+		try
+		{
+			await _module.DisposeAsync();
+		}
+		catch (JSDisconnectedException)
+		{
+			// Canvas iframe already tore the circuit down — nothing left to dispose.
+		}
+	}
+}

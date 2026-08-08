@@ -1,0 +1,31 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<EditForm EditContext="_editContext">
+	<ModelValidationSummary />
+</EditForm>
+
+@code {
+	// ModelValidationSummary requires a cascaded EditContext from an EditForm ancestor (it throws
+	// without one, deliberately) — this harness is that ancestor, seeding model-level messages the
+	// way ApplyServerErrors does: keyed on the empty field name. Fields are initializer/constructor-
+	// backed — the null-forgiving `= default!` idiom is reserved for EF navigations (house rules).
+	sealed record HarnessModel;
+
+	static readonly HarnessModel _model = new();
+	readonly EditContext _editContext = new(_model);
+	readonly ValidationMessageStore _store;
+
+	public ValidationSummaryHarness() =>
+		_store = new(_editContext);
+
+	/// <summary>The model-level messages the story pins.</summary>
+	[Parameter]
+	public IReadOnlyList<string> Messages { get; set; } = [];
+
+	protected override void OnParametersSet()
+	{
+		_store.Clear();
+		_store.Add(new FieldIdentifier(_model, string.Empty), Messages);
+		_editContext.NotifyValidationStateChanged();
+	}
+}
