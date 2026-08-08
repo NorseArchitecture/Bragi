@@ -1,0 +1,16 @@
+@attribute [Stories("Primitives/ModelValidationSummary")]
+<Stories TComponent="ModelValidationSummary">
+    <Story Name="Model Errors">
+        <Template>
+            <ValidationSummaryHarness Messages="_messages" />
+        </Template>
+    </Story>
+</Stories>
+
+@code {
+    static readonly IReadOnlyList<string> _messages =
+    [
+        "Invalid email or password.",
+        "This account is locked out. Try again later or reset your password.",
+    ];
+}

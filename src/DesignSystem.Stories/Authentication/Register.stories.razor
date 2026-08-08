@@ -10,4 +10,37 @@
             </LayoutView>
         </Template>
     </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("register-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <Register />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Email Taken">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.RegistrationConflict">
+                @* Email fill matches the canonical conflict message ("Email 'taken@example.com' is
+                   already taken.") so the pinned render is internally coherent. *@
+                <StoryDriver @key="@("register-email-taken")" Mode="StoryDriverMode.FillAndSubmit" Email="taken@example.com">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <Register />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Invalid Password">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.RegistrationValidation">
+                <StoryDriver @key="@("register-invalid-password")" Mode="StoryDriverMode.FillAndSubmit">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <Register />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
 </Stories>

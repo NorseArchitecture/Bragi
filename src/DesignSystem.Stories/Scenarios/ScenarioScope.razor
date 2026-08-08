@@ -1,0 +1,22 @@
+@typeparam TScenario where TScenario : struct, Enum
+@implements IDisposable
+@inject Scenario<TScenario> Scenario
+@ChildContent
+
+@code {
+	/// <summary>The scenario this story pins. Re-applied on every render; reset on dispose.</summary>
+	[Parameter, EditorRequired]
+	public TScenario Value { get; set; }
+
+	/// <summary>The story canvas this scope wraps.</summary>
+	[Parameter]
+	public RenderFragment? ChildContent { get; set; }
+
+	// Every render, not just init — BlazingStory's canvas iframe persists across story navigation, so
+	// determinism comes from this lifecycle, never from hoping the previous story cleaned up.
+	protected override void OnParametersSet() =>
+		Scenario.Value = Value;
+
+	public void Dispose() =>
+		Scenario.Reset();
+}

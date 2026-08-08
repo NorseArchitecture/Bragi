@@ -1,6 +1,9 @@
 @attribute [Stories("Authentication/Login")]
 @using Microsoft.AspNetCore.Components
 <Stories TComponent="Login">
+    @* Default stays a live playground: type fail@example.com into the Email field to preview the
+       invalid-credentials state interactively. The pinned stories below are the catalog's real
+       state inventory — see the Scenarios page. *@
     <Story Name="Default">
         <Template>
             @* Login only renders inside GateLayout's 280px column in production -- @layout is a routing-time
@@ -9,6 +12,48 @@
             <LayoutView Layout="typeof(GateLayout)">
                 <Login @attributes="context.Args" />
             </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("login-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <Login />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Invalid Credentials">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.InvalidCredentials">
+                <StoryDriver @key="@("login-invalid-credentials")" Mode="StoryDriverMode.FillAndSubmit">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <Login />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Locked Out">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.LockedOut">
+                <StoryDriver @key="@("login-locked-out")" Mode="StoryDriverMode.FillAndSubmit">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <Login />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Not Allowed">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.NotAllowed">
+                <StoryDriver @key="@("login-not-allowed")" Mode="StoryDriverMode.FillAndSubmit">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <Login />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
         </Template>
     </Story>
 </Stories>

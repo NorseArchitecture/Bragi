@@ -1,41 +1,91 @@
 using Norse.Abstractions.Contracts;
 using Norse.AuthN.Services;
+using Norse.DesignSystem.Stories.Scenarios;
+using Norse.Primitives;
+using Norse.Primitives.Pii;
 
 namespace Norse.DesignSystem.Stories.Authentication;
 
 /// <summary>
-/// Catalog-only stand-in for <see cref="IAuthenticationService"/> — never calls Himinbjörg, never
-/// touches gRPC. Lives here so the Login/Register/Logout stories and the fake they depend on ship
-/// together; the story host (Yggdrasil's <c>Hosting.Stories.Client</c>) registers it via
-/// <see cref="ServiceCollectionExtensions.AddNorseStoryFakes"/> and stays a pure composition root.
+///     Catalog-only stand-in for <see cref="IAuthenticationService" /> — never calls Himinbjörg, never
+///     touches gRPC. A stateless switch over the ambient <see cref="AuthenticationScenario" />:
+///     behavior is selected by the story (via <c>ScenarioScope</c>), never accumulated — the fake holds
+///     no mutable state of its own. Canonical outcomes mirror the real producers verbatim
+///     (spec §1.3: <c>LoginHandler</c>, <c>RegisterHandler</c>, <c>ExceptionTranslationBehavior</c>);
+///     parity tests pin every shape. Scenarios that do not apply to a method throw — a story arming
+///     the wrong scenario is an authoring error, and silence would mask it.
 /// </summary>
-sealed class FakeAuthenticationService : IAuthenticationService
+sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario) : IAuthenticationService
 {
-	// LoginResult.Succeeded was deleted platform-wide (ruled 2026-08-06, see the type's own doc
-	// comment) -- a rejected login is a Failed(Problem) instead, never a bare-success record with a
-	// false flag. This fake reports success, with the next-hop URL always resolved to "/" -- there is
-	// no real sign-in flow behind this story-host fake, so no 2FA challenge or deferred completion URL
-	// is ever produced. The one exception is the sentinel below: it exists purely so Login's story can
-	// preview the model-level validation-summary state without a running backend -- type it into the
-	// story's own Email field, no separate control needed.
+	/// <summary>
+	///     Typed into the Default (playground) story's own Email field to preview the
+	///     invalid-credentials state interactively — a garnish beside the pinned stories, never the
+	///     pinning mechanism.
+	/// </summary>
+	internal const string InvalidCredentialsSentinelEmail = "fail@example.com";
+
+	/// <summary>
+	///     The fixed catalog correlation id for <see cref="AuthenticationScenario.Fault" />. The real id
+	///     is minted per fault by Midgard's <c>ExceptionTranslationBehavior</c> via
+	///     <see cref="Guid.NewGuid" />, which would break the identical-render bar pinned stories exist
+	///     for; this value is obviously synthetic and never mistakable for a real incident reference.
+	/// </summary>
+	internal static readonly Guid CatalogCorrelationId = new("0badc0de-0bad-c0de-0bad-c0de0badc0de");
+
 	static readonly Failed _invalidCredentials =
 		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid email or password."));
 
-	const string InvalidCredentialsSentinelEmail = "fail@example.com";
-
-	// Always reports "not taken" -- a story-host fake with no real user store behind it; there is
-	// nothing for a checked email to ever collide with.
+	// Unconditionally "not taken" under every scenario: Blazilla's async EmailExists rule runs during
+	// validation before submit, so any other answer would stop driven Register stories from ever
+	// reaching their pinned server state.
 	public Task<Outcome<BoolResponse>> EmailExists(EmailExistsRequest request, CancellationToken cancellationToken = default) =>
 		Task.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = false }));
 
-	public Task<Outcome<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
-		Task.FromResult(request.Email.Equals(InvalidCredentialsSentinelEmail, StringComparison.OrdinalIgnoreCase)
-			? new Outcome<LoginResult>(_invalidCredentials)
-			: Outcome<LoginResult>.Ok(new LoginResult { NextUrl = "/" }));
+	public Task<Outcome<NavigationResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
+		Task.FromResult(scenario.Value switch
+		{
+			AuthenticationScenario.Success when request.Email is Success<EmailAddress>(var email) &&
+				email.WireValue.Equals(InvalidCredentialsSentinelEmail, StringComparison.OrdinalIgnoreCase) =>
+				new Outcome<NavigationResult>(_invalidCredentials),
+			AuthenticationScenario.Success =>
+				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
+			AuthenticationScenario.InvalidCredentials =>
+				new Outcome<NavigationResult>(_invalidCredentials),
+			AuthenticationScenario.LockedOut =>
+				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut,
+					new Dictionary<string, string[]> { [string.Empty] = ["This account is locked out. Try again later or reset your password."] }),
+			AuthenticationScenario.NotAllowed =>
+				Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
+					new Dictionary<string, string[]> { [string.Empty] = ["Sign-in is not allowed for this account."] }),
+			AuthenticationScenario.Fault =>
+				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
+			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to Login."),
+		});
 
-	public Task<Outcome<LogoutResult>> Logout(CancellationToken cancellationToken = default) =>
+	public Task<Outcome<NavigationResult>> Logout(CancellationToken cancellationToken = default) =>
 		throw new NotImplementedException("Logout is a non-visual component and should never be in a story");
 
-	public Task<Outcome<RegisterResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
-		Task.FromResult(Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true }));
+	public Task<Outcome<NavigationResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
+		Task.FromResult(scenario.Value switch
+		{
+			AuthenticationScenario.Success =>
+				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
+			AuthenticationScenario.RegistrationConflict =>
+				Outcome<NavigationResult>.Err(ErrorCategory.Conflict,
+					new Dictionary<string, string[]> { [nameof(RegisterRequest.Email)] = ["Email 'taken@example.com' is already taken."] }),
+			AuthenticationScenario.RegistrationValidation =>
+				Outcome<NavigationResult>.Err(ErrorCategory.Validation,
+					new Dictionary<string, string[]>
+					{
+						[nameof(RegisterRequest.Password)] =
+						[
+							"Passwords must have at least one non alphanumeric character.",
+							"Passwords must have at least one digit ('0'-'9').",
+							"Passwords must have at least one uppercase ('A'-'Z').",
+						],
+					}),
+			AuthenticationScenario.Fault =>
+				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
+			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to Register."),
+		});
 }

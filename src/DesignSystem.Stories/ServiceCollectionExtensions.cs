@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Norse.AuthN.Services;
 using Norse.DesignSystem.Stories.Authentication;
+using Norse.DesignSystem.Stories.Scenarios;
 
 namespace Norse.DesignSystem.Stories;
 
@@ -14,11 +15,16 @@ public static class ServiceCollectionExtensions
 	extension(IServiceCollection services)
 	{
 		/// <summary>
-		/// Registers a fake <see cref="IAuthenticationService"/> so the
-		/// authentication stories render and are interactive with no server context.
+		///     Registers the catalog's fake <see cref="IAuthenticationService" /> and its ambient
+		///     <see cref="Scenario{TScenario}" /> (initialized to
+		///     <see cref="AuthenticationScenario.Success" />) so the authentication stories render and
+		///     pin their states with no server context. Singletons deliberately: WASM makes scoped
+		///     effectively singleton anyway — say what you mean.
 		/// </summary>
 		/// <returns>The same service collection instance.</returns>
 		public IServiceCollection AddNorseStoryFakes() =>
-			services.AddScoped<IAuthenticationService, FakeAuthenticationService>();
+			services
+				.AddSingleton(new Scenario<AuthenticationScenario>(AuthenticationScenario.Success))
+				.AddSingleton<IAuthenticationService, FakeAuthenticationService>();
 	}
 }
