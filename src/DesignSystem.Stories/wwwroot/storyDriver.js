@@ -24,6 +24,10 @@ export async function drive(fill, email, password) {
 					input.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
 					input.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
 				}
+			// Native constraint validation would block an empty Required form before Blazor ever saw
+			// the submit event (shadow-rooted invalid controls aren't focusable) — Blazilla owns
+			// validation in this catalog, the browser doesn't.
+			form.noValidate = true;
 			form.requestSubmit();
 			return true;
 		}
