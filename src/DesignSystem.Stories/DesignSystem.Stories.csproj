@@ -12,16 +12,7 @@
 		<NorseRef Include="Abstractions.Components">
 			<Repo>Asgard</Repo>
 		</NorseRef>
-		<!-- Deliberate direct references: FakeAuthenticationService implements AuthN.Services'
-		     IAuthenticationService and speaks Contracts' Outcome/Problem vocabulary directly —
-		     not just transitively through AuthN.Components.FluentUI. -->
-		<NorseRef Include="Abstractions.Contracts">
-			<Repo>Asgard</Repo>
-		</NorseRef>
 		<NorseRef Include="AuthN.Components.FluentUI">
-			<Repo>Heimdall</Repo>
-		</NorseRef>
-		<NorseRef Include="AuthN.Services">
 			<Repo>Heimdall</Repo>
 		</NorseRef>
 	</ItemGroup>
