@@ -23,19 +23,19 @@ sealed class FakeAuthenticationService : IAuthenticationService
 
 	const string InvalidCredentialsSentinelEmail = "fail@example.com";
 
-	public Task<Outcome<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
-		Task.FromResult(request.Email.Equals(InvalidCredentialsSentinelEmail, StringComparison.OrdinalIgnoreCase)
-			? new Outcome<LoginResult>(_invalidCredentials)
-			: Outcome<LoginResult>.Ok(new LoginResult { NextUrl = "/" }));
-
-	public Task<Outcome<RegisterResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
-		Task.FromResult(Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true }));
-
 	// Always reports "not taken" -- a story-host fake with no real user store behind it; there is
 	// nothing for a checked email to ever collide with.
 	public Task<Outcome<BoolResponse>> EmailExists(EmailExistsRequest request, CancellationToken cancellationToken = default) =>
 		Task.FromResult(Outcome<BoolResponse>.Ok(new BoolResponse { Value = false }));
 
+	public Task<Outcome<LoginResult>> Login(LoginRequest request, CancellationToken cancellationToken = default) =>
+		Task.FromResult(request.Email.Equals(InvalidCredentialsSentinelEmail, StringComparison.OrdinalIgnoreCase)
+			? new Outcome<LoginResult>(_invalidCredentials)
+			: Outcome<LoginResult>.Ok(new LoginResult { NextUrl = "/" }));
+
 	public Task<Outcome<LogoutResult>> Logout(CancellationToken cancellationToken = default) =>
-		Task.FromResult(Outcome<LogoutResult>.Ok(new LogoutResult()));
+		throw new NotImplementedException("Logout is a non-visual component and should never be in a story");
+
+	public Task<Outcome<RegisterResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
+		Task.FromResult(Outcome<RegisterResult>.Ok(new RegisterResult { Succeeded = true }));
 }
