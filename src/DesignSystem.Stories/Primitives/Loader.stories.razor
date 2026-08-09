@@ -1,13 +1,20 @@
 @attribute [Stories("Primitives/Loader")]
 <Stories TComponent="Loader">
+    @* Loader is a small, inline primitive by design -- unwrapped, it renders flush against the
+       canvas's top-left corner, easy to miss at a glance. The padding here is a preview-only
+       decoration; it is not part of the component's own contract. *@
     <Story Name="Default">
         <Template>
-            <Loader @attributes="context.Args" />
+            <div style="padding: 2rem;">
+                <Loader @attributes="context.Args" />
+            </div>
         </Template>
     </Story>
     <Story Name="Custom Label">
         <Template>
-            <Loader Label="Fetching widgets…" @attributes="context.Args" />
+            <div style="padding: 2rem;">
+                <Loader Label="Fetching widgets…" @attributes="context.Args" />
+            </div>
         </Template>
     </Story>
 </Stories>
