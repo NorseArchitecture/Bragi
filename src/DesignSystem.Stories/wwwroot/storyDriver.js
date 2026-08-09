@@ -28,6 +28,14 @@ export async function drive(fill, email, password) {
 			// the submit event (shadow-rooted invalid controls aren't focusable) — Blazilla owns
 			// validation in this catalog, the browser doesn't.
 			form.noValidate = true;
+			// requestSubmit() races Blazor's own submit interception (the WASM interactive delegator
+			// and/or enhanced-navigation's own listener) -- whichever attaches to the form first wins.
+			// If neither has attached yet, the browser's native default action fires: a real navigation
+			// that escapes the story's iframe and boots the whole catalog inside it. This capture-phase
+			// listener is registered synchronously, before dispatch, so it is never subject to that race;
+			// it blocks the browser's default action unconditionally without stopping propagation, so
+			// Blazor's own listener(s) still see the event and process the submit normally once attached.
+			form.addEventListener("submit", event => event.preventDefault(), { capture: true, once: true });
 			form.requestSubmit();
 			return true;
 		}
