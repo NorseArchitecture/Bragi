@@ -118,6 +118,31 @@ public sealed class ScenarioScopeTests : BunitContext
 	}
 
 	[Fact]
+	void Re_rendering_a_superseded_scope_throws_without_stealing_the_successor_pin()
+	{
+		var host = Render<ScenarioScopeHost>(parameters =>
+			parameters
+				.Add(p => p.ShowA, true)
+				.Add(p => p.ValueA, AuthenticationScenario.LockedOut));
+		host.Render(parameters =>
+			parameters
+				.Add(p => p.ShowA, true)
+				.Add(p => p.ShowB, true)
+				.Add(p => p.ValueA, AuthenticationScenario.LockedOut)
+				.Add(p => p.ValueB, AuthenticationScenario.Fault));
+
+		Should.Throw<InvalidOperationException>(() =>
+			host.Render(parameters =>
+				parameters
+					.Add(p => p.ShowA, true)
+					.Add(p => p.ShowB, true)
+					.Add(p => p.ValueA, AuthenticationScenario.NotAllowed)
+					.Add(p => p.ValueB, AuthenticationScenario.Fault)));
+
+		_scenario.Value.ShouldBe(AuthenticationScenario.Fault);
+	}
+
+	[Fact]
 	void Child_content_renders_inside_the_scope()
 	{
 		var cut = Render<ScenarioScope<AuthenticationScenario>>(parameters =>

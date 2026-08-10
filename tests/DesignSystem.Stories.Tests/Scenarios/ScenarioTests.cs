@@ -21,11 +21,11 @@ public sealed class ScenarioTests
 	}
 
 	[Fact]
-	void Pinning_issues_fresh_reference_identity_tokens()
+	void Disposing_a_superseded_pin_leaves_the_current_pin_intact()
 	{
 		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
-		ScenarioPin<AuthenticationScenario> firstPin = scenario.Pin(AuthenticationScenario.LockedOut);
-		ScenarioPin<AuthenticationScenario> secondPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var firstPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var secondPin = scenario.Pin(AuthenticationScenario.LockedOut);
 
 		ReferenceEquals(firstPin, secondPin).ShouldBeFalse();
 		firstPin.Dispose();
@@ -38,7 +38,7 @@ public sealed class ScenarioTests
 	void Disposing_the_current_pin_restores_the_initial_value()
 	{
 		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
-		ScenarioPin<AuthenticationScenario> pin = scenario.Pin(AuthenticationScenario.Fault);
+		var pin = scenario.Pin(AuthenticationScenario.Fault);
 		pin.Dispose();
 		scenario.Value.ShouldBe(AuthenticationScenario.Success);
 	}
@@ -47,9 +47,9 @@ public sealed class ScenarioTests
 	void Disposing_an_old_pin_twice_cannot_affect_a_later_owner()
 	{
 		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
-		ScenarioPin<AuthenticationScenario> oldPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var oldPin = scenario.Pin(AuthenticationScenario.LockedOut);
 		oldPin.Dispose();
-		ScenarioPin<AuthenticationScenario> successorPin = scenario.Pin(AuthenticationScenario.Fault);
+		var successorPin = scenario.Pin(AuthenticationScenario.Fault);
 
 		oldPin.Dispose();
 
@@ -62,8 +62,8 @@ public sealed class ScenarioTests
 	void Disposing_the_newest_pin_restores_the_initial_value_not_the_superseded_pin()
 	{
 		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
-		ScenarioPin<AuthenticationScenario> supersededPin = scenario.Pin(AuthenticationScenario.LockedOut);
-		ScenarioPin<AuthenticationScenario> newestPin = scenario.Pin(AuthenticationScenario.Fault);
+		var supersededPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var newestPin = scenario.Pin(AuthenticationScenario.Fault);
 
 		newestPin.Dispose();
 
