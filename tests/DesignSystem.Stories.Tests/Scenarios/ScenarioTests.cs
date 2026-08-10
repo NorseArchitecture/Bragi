@@ -13,17 +13,47 @@ public sealed class ScenarioTests
 	}
 
 	[Fact]
-	void A_story_can_change_the_ambient_value()
+	void Pinning_changes_the_ambient_value()
 	{
-		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success) { Value = AuthenticationScenario.LockedOut };
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		scenario.Pin(AuthenticationScenario.LockedOut);
 		scenario.Value.ShouldBe(AuthenticationScenario.LockedOut);
 	}
 
 	[Fact]
-	void Reset_restores_the_initial_value()
+	void Pinning_issues_fresh_reference_identity_tokens()
 	{
-		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success) { Value = AuthenticationScenario.Fault };
-		scenario.Reset();
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var firstPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var secondPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		object firstIdentity = firstPin;
+		object secondIdentity = secondPin;
+
+		firstIdentity.GetType().IsValueType.ShouldBeFalse();
+		ReferenceEquals(firstIdentity, secondIdentity).ShouldBeFalse();
+	}
+
+	[Fact]
+	void Releasing_the_current_pin_restores_the_initial_value()
+	{
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var pin = scenario.Pin(AuthenticationScenario.Fault);
+		scenario.Release(pin);
+		scenario.Value.ShouldBe(AuthenticationScenario.Success);
+	}
+
+	[Fact]
+	void Releasing_an_old_pin_twice_cannot_affect_a_later_owner()
+	{
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var oldPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		scenario.Release(oldPin);
+		var successorPin = scenario.Pin(AuthenticationScenario.Fault);
+
+		scenario.Release(oldPin);
+
+		scenario.Value.ShouldBe(AuthenticationScenario.Fault);
+		scenario.Release(successorPin);
 		scenario.Value.ShouldBe(AuthenticationScenario.Success);
 	}
 
