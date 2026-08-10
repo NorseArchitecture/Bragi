@@ -99,7 +99,13 @@ export async function drive(fill, email, password) {
 			// listener is registered synchronously, before dispatch, so it is never subject to that race;
 			// it blocks the browser's default action unconditionally without stopping propagation, so
 			// Blazor's own listener(s) still see the event and process the submit normally once attached.
-			const settled = waitForPostSubmitSettle(document.body, fill);
+			// Scoped to the StoryDriver wrapper, not document.body: BlazingStory's canvas iframe
+			// persists across story navigation, so the body carries unrelated mutations (route
+			// transitions, a late-finishing Fluent custom-element upgrade from the previous story)
+			// that would otherwise satisfy the quiet/minimum thresholds before this story's own
+			// submit result ever renders. The wrapper contains both the form and its result — every
+			// StoryDriver-driven story renders one, so drive() is never called without it.
+			const settled = waitForPostSubmitSettle(form.closest("[data-norse-story-driver-state]"), fill);
 			form.addEventListener("submit", event => event.preventDefault(), { capture: true, once: true });
 			form.requestSubmit();
 			settled.markSubmitted();
