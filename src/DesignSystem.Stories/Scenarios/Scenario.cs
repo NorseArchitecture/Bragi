@@ -4,7 +4,11 @@ namespace Norse.DesignSystem.Stories.Scenarios;
 ///     The ambient scenario a story pins its fake family into. Registered as a singleton per fake
 ///     family, constructed with that family's initial (happy-path) value — the constructor argument,
 ///     not the enum's CLR default, is why an unwrapped story renders success while <c>0</c> stays the
-///     platform-law sentinel. <see cref="ScenarioScope{TScenario}" /> is the only writer.
+///     platform-law sentinel. This is a single slot: the newest pin supersedes the prior owner,
+///     disposing a stale pin is a no-op, and disposing the current pin restores the constructor initial
+///     value, never a superseded pin's value. Reference identity rejects stale disposal; the lock only
+///     keeps value reads and owner/value transitions coherent. <see cref="ScenarioScope{TScenario}" />
+///     is the only writer.
 /// </summary>
 /// <param name="initialValue">The family's happy-path value, restored when the current pin is released.</param>
 sealed class Scenario<TScenario>(TScenario initialValue)
@@ -15,7 +19,7 @@ sealed class Scenario<TScenario>(TScenario initialValue)
 	/// <summary>The constructor-supplied happy-path value a current-pin release restores.</summary>
 	readonly TScenario _initialValue = initialValue;
 
-	object? _owner;
+	ScenarioPin<TScenario>? _owner;
 
 	/// <summary>The currently pinned scenario.</summary>
 	public TScenario Value
@@ -30,24 +34,27 @@ sealed class Scenario<TScenario>(TScenario initialValue)
 		private set;
 	} = initialValue;
 
-	/// <summary>Pins a scenario value and returns its opaque ownership token.</summary>
-	public object Pin(TScenario value)
+	/// <summary>
+	///     Pins the value in the scenario's single slot, superseding prior ownership, and returns the
+	///     new owner. Disposing a stale pin does nothing; disposing the current pin restores the
+	///     constructor initial value rather than the superseded value.
+	/// </summary>
+	public ScenarioPin<TScenario> Pin(TScenario value)
 	{
 		lock (_gate)
 		{
-			var token = new object();
+			var pin = new ScenarioPin<TScenario>(this);
 			Value = value;
-			_owner = token;
-			return token;
+			_owner = pin;
+			return pin;
 		}
 	}
 
-	/// <summary>Restores the initial value when the released token still owns the current pin.</summary>
-	public void Release(object? token)
+	internal void Release(ScenarioPin<TScenario> pin)
 	{
 		lock (_gate)
 		{
-			if (token is null || !ReferenceEquals(_owner, token))
+			if (!ReferenceEquals(_owner, pin))
 			{
 				return;
 			}
@@ -56,4 +63,17 @@ sealed class Scenario<TScenario>(TScenario initialValue)
 			_owner = null;
 		}
 	}
+}
+
+/// <summary>
+///     An idempotently disposable owner of one scenario pin. A newer pin can supersede this one; this
+///     handle never represents a stack frame and disposing it never restores an earlier pin.
+/// </summary>
+sealed class ScenarioPin<TScenario>(Scenario<TScenario> scenario) : IDisposable
+	where TScenario : struct, Enum
+{
+	Scenario<TScenario>? _scenario = scenario;
+
+	public void Dispose() =>
+		Interlocked.Exchange(ref _scenario, null)?.Release(this);
 }

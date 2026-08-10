@@ -4,7 +4,7 @@
 @ChildContent
 
 @code {
-	object? _pin;
+	ScenarioPin<TScenario>? _pin;
 
 	/// <summary>The scenario this story pins. Re-applied on every render; released on dispose.</summary>
 	[Parameter, EditorRequired]
@@ -20,5 +20,5 @@
 		_pin = Scenario.Pin(Value);
 
 	public void Dispose() =>
-		Scenario.Release(_pin);
+		_pin?.Dispose();
 }
