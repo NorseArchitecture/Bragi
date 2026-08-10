@@ -1,9 +1,12 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@ChildContent
+<div style="display: contents;" data-norse-story-driver-state="@_state">
+	@ChildContent
+</div>
 
 @code {
 	IJSObjectReference? _module;
+	string _state = "pending";
 
 	/// <summary>How to drive the wrapped form. Required — <see cref="StoryDriverMode.Unspecified" /> throws.</summary>
 	[Parameter, EditorRequired]
@@ -35,6 +38,9 @@
 		var driven = await _module.InvokeAsync<bool>("drive", Mode is StoryDriverMode.FillAndSubmit, Email, Password);
 		if (!driven)
 			throw new InvalidOperationException("StoryDriver found no form to drive.");
+
+		_state = "complete";
+		StateHasChanged();
 	}
 
 	public async ValueTask DisposeAsync()

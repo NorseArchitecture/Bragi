@@ -2,6 +2,8 @@ using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Norse.AuthN.Components;
 using Norse.AuthN.Services;
+using Norse.Reference;
+using Norse.Reference.Components;
 
 namespace Norse.DesignSystem.Stories.Tests;
 
@@ -37,5 +39,19 @@ public sealed class ServiceCollectionExtensionsTests
 	{
 		using var provider = Build();
 		provider.GetRequiredService<IAuthenticationService>().ShouldBeSameAs(provider.GetRequiredService<IAuthenticationService>());
+	}
+
+	[Fact]
+	void Registers_the_country_request_validator_blazilla_resolves()
+	{
+		using var provider = Build();
+		provider.GetRequiredService<IValidator<CountryRequest>>().ShouldBeOfType<CountryRequestValidator>();
+	}
+
+	[Fact]
+	void Registers_the_reference_fake_and_its_scenario_as_the_same_singletons()
+	{
+		using var provider = Build();
+		provider.GetRequiredService<IReferenceService>().ShouldBeSameAs(provider.GetRequiredService<IReferenceService>());
 	}
 }

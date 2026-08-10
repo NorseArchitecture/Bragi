@@ -20,6 +20,15 @@ nothing here accumulates state. A story renders the same way every time you load
 | `RegistrationValidation` | Register password-policy rejection | `Password`: the three complexity messages the `"aaaaaaaa"` fixture provably yields |
 | `Fault` | Unmapped failure | Correlation reference `0badc0de-0bad-c0de-0bad-c0de0badc0de` — fixed and obviously synthetic |
 
+## Reference scenarios
+
+| Scenario | What renders | Canonical shape |
+|---|---|---|
+| `Success` | Happy path (unwrapped stories) | Every recognized code resolves for real off `Iso3166` — Alpha-2/Alpha-3/Name/Code straight from the generated dataset; `Region` renders only for the United States, the catalog's one hand-fixtured ancestry chain (Americas → Northern America) |
+| `Fault` | Unmapped failure | Correlation reference `0badc0de-0bad-c0de-0bad-c0de0badc0de` — the same fixed sentinel the authentication scenarios use |
+
+`CountryLookup`'s validation-errors state needs no scenario at all — `CountryRequestValidator` blocks an empty submit client-side, the same as Login's.
+
 ## The playground sentinel
 
 The `Login → Default` story stays interactive: type **`fail@example.com`** into its Email field

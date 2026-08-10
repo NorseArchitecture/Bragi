@@ -15,5 +15,8 @@
 		<NorseRef Include="AuthN.Components.FluentUI">
 			<Repo>Heimdall</Repo>
 		</NorseRef>
+		<NorseRef Include="Reference.Components.FluentUI">
+			<Repo>Mimir</Repo>
+		</NorseRef>
 	</ItemGroup>
 </Project>

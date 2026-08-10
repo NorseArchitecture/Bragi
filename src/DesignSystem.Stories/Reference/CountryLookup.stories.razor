@@ -1,0 +1,46 @@
+@attribute [Stories("Reference/Country Lookup")]
+<Stories TComponent="CountryLookup">
+    @* Default stays a live playground: type any ISO 3166-1 code (alpha-2, alpha-3, numeric, or a
+       resolved response's own Id) and submit to preview the round trip interactively. Every recognized
+       code resolves for real off Iso3166; the Region section only renders for the United States, the
+       catalog's one hand-fixtured ancestry chain — every other code renders without it, same as
+       Antarctica does for real. The pinned stories below are the catalog's real state inventory —
+       see the Scenarios page. *@
+    <Story Name="Default">
+        <Template>
+            <CountryLookup @attributes="context.Args" />
+        </Template>
+    </Story>
+    <Story Name="Resolved">
+        <Template>
+            @* Reuses StoryDriver's Email slot to carry the code text -- the form only has one field,
+               and the driver fills every text input it finds regardless of what it's named for. *@
+            <StoryDriver @key="@("country-lookup-resolved")" Mode="StoryDriverMode.FillAndSubmit" Email="US">
+                <CountryLookup />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="No Ancestry">
+        <Template>
+            <StoryDriver @key="@("country-lookup-no-ancestry")" Mode="StoryDriverMode.FillAndSubmit" Email="AQ">
+                <CountryLookup />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("country-lookup-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <CountryLookup />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="ReferenceScenario.Fault">
+                <StoryDriver @key="@("country-lookup-fault")" Mode="StoryDriverMode.FillAndSubmit" Email="US">
+                    <CountryLookup />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>
