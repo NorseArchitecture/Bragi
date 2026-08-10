@@ -3,7 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Norse.AuthN.Components;
 using Norse.AuthN.Services;
 using Norse.DesignSystem.Stories.Authentication;
+using Norse.DesignSystem.Stories.Reference;
 using Norse.DesignSystem.Stories.Scenarios;
+using Norse.Reference;
+using Norse.Reference.Components;
 
 namespace Norse.DesignSystem.Stories;
 
@@ -17,12 +20,12 @@ public static class ServiceCollectionExtensions
 	extension(IServiceCollection services)
 	{
 		/// <summary>
-		///     Registers the catalog's fake <see cref="IAuthenticationService" /> and its ambient
-		///     <see cref="Scenario{TScenario}" /> (initialized to
-		///     <see cref="AuthenticationScenario.Success" />) so the authentication stories render and
-		///     pin their states with no server context. Also registers the real client-side validators
-		///     (Blazilla resolves them from DI) — the async email-availability rule rides the fake, so
-		///     driven Register stories validate against catalog truth. Singletons deliberately: WASM
+		///     Registers the catalog's fake <see cref="IAuthenticationService" /> and
+		///     <see cref="IReferenceService" />, each with its own ambient <see cref="Scenario{TScenario}" />
+		///     (initialized to the family's <c>Success</c> member) so their stories render and pin their
+		///     states with no server context. Also registers the real client-side validators (Blazilla
+		///     resolves them from DI) — the async email-availability rule rides the authentication fake,
+		///     so driven Register stories validate against catalog truth. Singletons deliberately: WASM
 		///     makes scoped effectively singleton anyway — say what you mean.
 		/// </summary>
 		/// <returns>The same service collection instance.</returns>
@@ -31,6 +34,9 @@ public static class ServiceCollectionExtensions
 				.AddSingleton(new Scenario<AuthenticationScenario>(AuthenticationScenario.Success))
 				.AddSingleton<IAuthenticationService, FakeAuthenticationService>()
 				.AddSingleton<IValidator<LoginRequest>, LoginRequestValidator>()
-				.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>();
+				.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>()
+				.AddSingleton(new Scenario<ReferenceScenario>(ReferenceScenario.Success))
+				.AddSingleton<IReferenceService, FakeReferenceService>()
+				.AddSingleton<IValidator<CountryRequest>, CountryRequestValidator>();
 	}
 }
