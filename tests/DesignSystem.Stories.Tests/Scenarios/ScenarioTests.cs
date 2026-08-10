@@ -13,17 +13,62 @@ public sealed class ScenarioTests
 	}
 
 	[Fact]
-	void A_story_can_change_the_ambient_value()
+	void Pinning_changes_the_ambient_value()
 	{
-		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success) { Value = AuthenticationScenario.LockedOut };
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		scenario.Pin(AuthenticationScenario.LockedOut);
 		scenario.Value.ShouldBe(AuthenticationScenario.LockedOut);
 	}
 
 	[Fact]
-	void Reset_restores_the_initial_value()
+	void Disposing_a_superseded_pin_leaves_the_current_pin_intact()
 	{
-		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success) { Value = AuthenticationScenario.Fault };
-		scenario.Reset();
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var firstPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var secondPin = scenario.Pin(AuthenticationScenario.LockedOut);
+
+		ReferenceEquals(firstPin, secondPin).ShouldBeFalse();
+		firstPin.Dispose();
+		scenario.Value.ShouldBe(AuthenticationScenario.LockedOut);
+		secondPin.Dispose();
+		scenario.Value.ShouldBe(AuthenticationScenario.Success);
+	}
+
+	[Fact]
+	void Disposing_the_current_pin_restores_the_initial_value()
+	{
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var pin = scenario.Pin(AuthenticationScenario.Fault);
+		pin.Dispose();
+		scenario.Value.ShouldBe(AuthenticationScenario.Success);
+	}
+
+	[Fact]
+	void Disposing_an_old_pin_twice_cannot_affect_a_later_owner()
+	{
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var oldPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		oldPin.Dispose();
+		var successorPin = scenario.Pin(AuthenticationScenario.Fault);
+
+		oldPin.Dispose();
+
+		scenario.Value.ShouldBe(AuthenticationScenario.Fault);
+		successorPin.Dispose();
+		scenario.Value.ShouldBe(AuthenticationScenario.Success);
+	}
+
+	[Fact]
+	void Disposing_the_newest_pin_restores_the_initial_value_not_the_superseded_pin()
+	{
+		Scenario<AuthenticationScenario> scenario = new(AuthenticationScenario.Success);
+		var supersededPin = scenario.Pin(AuthenticationScenario.LockedOut);
+		var newestPin = scenario.Pin(AuthenticationScenario.Fault);
+
+		newestPin.Dispose();
+
+		scenario.Value.ShouldBe(AuthenticationScenario.Success);
+		supersededPin.Dispose();
 		scenario.Value.ShouldBe(AuthenticationScenario.Success);
 	}
 

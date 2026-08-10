@@ -4,7 +4,9 @@
 @ChildContent
 
 @code {
-	/// <summary>The scenario this story pins. Re-applied on every render; reset on dispose.</summary>
+	Scenario<TScenario>.ScenarioPin? _pin;
+
+	/// <summary>The scenario this story pins. Re-applied on every render; released on dispose.</summary>
 	[Parameter, EditorRequired]
 	public TScenario Value { get; set; }
 
@@ -14,9 +16,18 @@
 
 	// Every render, not just init — BlazingStory's canvas iframe persists across story navigation, so
 	// determinism comes from this lifecycle, never from hoping the previous story cleaned up.
-	protected override void OnParametersSet() =>
-		Scenario.Value = Value;
+	protected override void OnParametersSet()
+	{
+		if (_pin is null)
+		{
+			_pin = Scenario.Pin(Value);
+		}
+		else
+		{
+			_pin.Repin(Value);
+		}
+	}
 
 	public void Dispose() =>
-		Scenario.Reset();
+		_pin?.Dispose();
 }
