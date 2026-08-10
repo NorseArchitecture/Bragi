@@ -14,3 +14,15 @@ jobs:
     secrets: inherit
     with:
       minimum_coverage: 0
+
+  story-driver:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Test StoryDriver module
+        run: npm test

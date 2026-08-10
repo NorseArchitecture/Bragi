@@ -75,9 +75,9 @@ function inputsOf(root) {
 	return inputs;
 }
 
-export async function drive(fill, email, password) {
+export async function drive(root, fill, email, password) {
 	for (let attempt = 0; attempt < maxTries; attempt++) {
-		const form = document.querySelector("form");
+		const form = root.querySelector("form");
 		if (form) {
 			if (fill)
 				for (const input of inputsOf(form)) {
@@ -103,9 +103,8 @@ export async function drive(fill, email, password) {
 			// persists across story navigation, so the body carries unrelated mutations (route
 			// transitions, a late-finishing Fluent custom-element upgrade from the previous story)
 			// that would otherwise satisfy the quiet/minimum thresholds before this story's own
-			// submit result ever renders. The wrapper contains both the form and its result — every
-			// StoryDriver-driven story renders one, so drive() is never called without it.
-			const settled = waitForPostSubmitSettle(form.closest("[data-norse-story-driver-state]"), fill);
+			// submit result ever renders.
+			const settled = waitForPostSubmitSettle(root, fill);
 			form.addEventListener("submit", event => event.preventDefault(), { capture: true, once: true });
 			form.requestSubmit();
 			settled.markSubmitted();

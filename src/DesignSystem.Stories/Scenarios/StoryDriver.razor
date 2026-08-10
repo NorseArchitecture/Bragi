@@ -1,11 +1,12 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-<div style="display: contents;" data-norse-story-driver-state="@_state">
+<div @ref="_root" style="display: contents;" data-norse-story-driver-state="@_state">
 	@ChildContent
 </div>
 
 @code {
 	IJSObjectReference? _module;
+	ElementReference _root;
 	string _state = "pending";
 
 	/// <summary>How to drive the wrapped form. Required — <see cref="StoryDriverMode.Unspecified" /> throws.</summary>
@@ -35,7 +36,7 @@
 		if (Mode is StoryDriverMode.Unspecified)
 			throw new InvalidOperationException("StoryDriver requires an explicit mode.");
 		_module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Norse.DesignSystem.Stories/storyDriver.js");
-		var driven = await _module.InvokeAsync<bool>("drive", Mode is StoryDriverMode.FillAndSubmit, Email, Password);
+		var driven = await _module.InvokeAsync<bool>("drive", _root, Mode is StoryDriverMode.FillAndSubmit, Email, Password);
 		if (!driven)
 			throw new InvalidOperationException("StoryDriver found no form to drive.");
 
