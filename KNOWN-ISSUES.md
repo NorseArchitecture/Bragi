@@ -2,7 +2,7 @@
 
 ## BlazingStory canvas boots itself nested inside itself on a driven story
 
-**Status:** Root cause **re-diagnosed 2026-08-11**. The original entry blamed a third-party package; that was wrong. The cause was ours, in two independent mechanisms, both now closed. Believed fixed, **pending a browser run to confirm** — see "What is still unverified".
+**Status:** **Partially closed 2026-08-11.** Root cause was re-diagnosed the same day (see below) and both original mechanisms were fixed upstream. The hazard that survived both fixes is closed for Login and Logout, confirmed by a real browser run. **It is not closed for Register — a third mechanism, distinct from the first two, reproduces the identical symptom via Register's own (correct, non-forced) soft navigation. Deferred, not fixed. See "Register: still open" below.**
 
 **First observed:** 2026-08-08, while smoke-testing the story catalog after the `storyDriver.js` scenario-fake pattern shipped the same day.
 
@@ -56,16 +56,36 @@ The instrumented evidence the original entry collected actually fits `NavigateTo
 - **Both are now locked by tests.** `DrivenStoryNavigationTests` renders each driven story's real composition and asserts `BunitNavigationManager` recorded no navigation. `BunitNavigationManager` captures `NavigateTo` instead of performing it, which turns this browser-only symptom into an ordinary unit assertion.
 - The `storyDriver.js` capture-phase `preventDefault()` fix (a genuinely separate native-submit race, described in the original entry) stays. It was real and independent of everything above.
 
-### What is still unverified
+### The hazard that survived both fixes — closed for Login/Logout, open for Register (2026-08-11)
 
-1. **No browser run has confirmed the fix.** The tests prove the ignition is unreachable in the component tree; they do not exercise BlazingStory, its iframe, or its router. Re-run the Playwright repro below against the current packages before closing this entry.
-2. **One loose end in the original evidence.** The original entry states a cold, direct load "reliably works". Mechanism 1 should have fired cold as well as warm, since it does not depend on scope disposal. Either that observation did not isolate `Register → Validation Errors` specifically, or it was confounded with the native-submit race (which was fixed in the same pass), or a third mechanism exists. Worth checking during the browser run rather than assuming.
+`Success` was simultaneously the value a released pin restores **and** the only scenario that performed a destructive navigation. So the failure mode of "this story lost its pin" was not a wrong render — it was the nested doll, again. Both mechanisms above were different routes to that same single point of ignition.
 
-### The hazard that survives both fixes
+**The durable fix landed for principal transitions:** `RecordingSessionTransition` (`Norse.DesignSystem.Stories`) is the catalog's `ISessionTransition` — suppress-and-record instead of a real forced document load — registered by `AddNorseStoryFakes()` alongside the fake's own `Logout` arm. Login and Logout route their success continuation through the seam, and `RecordingSessionTransition.Begin()` never calls `NavigationManager` at all — it appends to a list and returns. There is no code path left on those two that could reach real navigation, forced or soft. Confirmed by browser run: see below. Full design: `../Glitnir/docs/Asgard/specs/2026-08-11-session-transition-seam-design.md`.
 
-`Success` is simultaneously the value a released pin restores **and** the only scenario that performs a destructive navigation. So the failure mode of "this story lost its pin" is not a wrong render — it is the nested doll, again. Both mechanisms above were different routes to that same single point of ignition.
+**Register was deliberately left outside the seam** — its handler signs nobody in, so no principal transition occurs, and `ISessionTransition` (a contract for "the principal changed") doesn't fit. That reasoning holds for a real deployment. It does not hold inside the story catalog — see "Register: still open" below.
 
-The durable fix is to make the catalog's navigation inert, so that a pinning gap degrades to a boring wrong-render instead of re-booting the catalog. `DrivenStoryNavigationTests.An_unpinned_driven_story_force_navigates_which_is_what_boots_the_catalog_nested` is a characterization test pinning this behavior deliberately — it documents the live hazard rather than endorsing it, and should be inverted if and when the navigation is neutered.
+The characterization test is inverted, exactly as its own comment promised: `DrivenStoryNavigationTests.An_unpinned_driven_story_force_navigates_which_is_what_boots_the_catalog_nested` is gone, replaced by `An_unpinned_driven_login_story_begins_a_session_transition_the_catalog_suppresses` (plus siblings for Register's soft-nav and a confirmed Logout) — each asserting `SessionTransitions.Transitions` recorded what the suppressed seam saw, and `Navigation.History` stayed empty. These are `bUnit` assertions against `BunitNavigationManager`, which captures `NavigateTo` instead of performing it — accurate for what they test, but see below for what they cannot.
+
+### Register: still open — a third mechanism (2026-08-11)
+
+**Reproduced live, twice, deliberately.** `Register → Default` (ambient `Success`), submitted with a fresh email inside a real `Hosting.Stories.Server`/`Hosting.Stories.Client` pair: within ~500ms the story iframe's own `contentWindow.location.href` becomes the catalog's root path, and a second, fully-booted `Blazing Story` shell renders inside the preview pane, landing on "Scenarios" — the identical symptom this entire entry is about.
+
+**Why this isn't the same bug, and why the seam doesn't cover it:** Register's continuation is `Navigation.NavigateTo(result.NextUrl)` — no `forceLoad`, an honest soft navigation. In a real host, that is completely correct: it takes the user to the app root. Inside BlazingStory, each story preview iframe is a **live instance of the same WASM app** (`Hosting.Stories.Client`), scoped to story-preview mode only via the `viewMode=story&id=...` query on `iframe.html`. That scoping holds on the initial render. It does not survive a genuine client-side `NavigateTo` from a component inside it: the iframe's own router resolves the target path against its own route table, which is the catalog's own routes — landing on the catalog root, not anywhere Register intended.
+
+**Why the earlier "zero events" verification missed it:** the Investigation trail method below (and the automated sweep run at this gate's close) hooks `beforeunload`/`pagehide`/`submit`/`requestSubmit` — the signatures of a **forced** document reload. A `pushState`-based client-side route change inside a live SPA never fires any of those events; that is the entire point of a soft navigation. The method is sound for what it was built to catch (mechanisms 1 and 2, both forced reloads) and structurally incapable of catching this one. The original browser-confirmation pass for this entry claimed Register's path was clean on exactly this basis — that claim was wrong, and has been removed below; the corrected findings replace it.
+
+**Not fixed.** Candidate approaches considered but not attempted: routing Register through `ISessionTransition` (rejected — semantically wrong, no principal transition occurs); a catalog-scoped `NavigationManager` wrapper that suppresses real navigation the way `RecordingSessionTransition` does for the seam (plausible, but risks intercepting BlazingStory's own in-iframe toolbar/routing state, which rides the same `NavigationManager` — needs real design, not a quick patch). Left open deliberately rather than rushed.
+
+### Browser confirmation (2026-08-11)
+
+Ran the Investigation trail method below for real, against a freshly built `Hosting.Stories.Server`/`Hosting.Stories.Client` pair, hooking `beforeunload`/`pagehide`/`submit`/`requestSubmit` in the top frame **and** every iframe via `addInitScript`:
+
+- **Cold loads, all eight driven stories** (`Login → Locked Out/Invalid Credentials/Validation Errors/Not Allowed`, `Register → Validation Errors/Email Taken/Invalid Password`, `Logout → Sign-out Failed`) — zero `beforeunload`/`pagehide`/`submit`/`requestSubmit` events, in either frame. Every story iframe's `contentWindow.location.href` stayed on its own `viewMode=story&id=...` URL — no nested catalog boot on cold load, for any story, including `Register → Default`.
+- **Sibling re-entry** (`Login → Locked Out` → `Login → Invalid Credentials` → back to `Locked Out`, the exact sequence mechanism 2 needed) — zero events.
+- **`Logout → Sign-out Failed`** renders its alert: `"Sign-out failed — you are still signed in."` — confirmed by reading the iframe's DOM directly.
+- **Register's Success path is NOT clean** — see "Register: still open" above. A step-by-step reproduction (cold load → confirm clean → fill and submit → sample the iframe's DOM every 500ms) shows the nested shell present within one sample (~500ms) of the click. The absence of `beforeunload`/`pagehide` events during this same window is real and expected — it is not evidence of safety, because this failure mode doesn't produce those events in the first place.
+
+One loose end from the original evidence — a cold, direct load "reliably worked" even before mechanisms 1 and 2 were fixed — is resolved for those two mechanisms (neither reproduces on cold load post-fix) and is consistent with the newly found mechanism 3, which likewise never fires on cold load — only after a real submit.
 
 ### Investigation trail, for anyone re-opening this
 
