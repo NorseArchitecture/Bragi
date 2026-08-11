@@ -57,7 +57,6 @@ The instrumented evidence the original entry collected actually fits `NavigateTo
 - **Mechanism 2 is closed** by single-slot pin ownership with reference-identity release (PR #24) — a superseded scope's disposal is a no-op, so a predecessor can no longer reset a live successor's pin.
 - **Mechanism 3 is closed** by Bragi v0.0.9's wrapper-scoped form discovery. Its real-module two-form regression mounts an external stale form beside the incoming wrapper and proves only the wrapper-owned form is submitted.
 - **All three are now locked by tests.** `DrivenStoryNavigationTests` renders each driven story's real composition and asserts `BunitNavigationManager` recorded no navigation. `BunitNavigationManager` captures `NavigateTo` instead of performing it, which turns the force-load ignition into an ordinary unit assertion; the StoryDriver module regression independently locks the form-selection boundary.
-- Bragi's source `PackageReference` now pins BlazingStory `1.0.0-preview.91` exactly, preventing future package builds from drifting beyond the runtime version audited by this investigation.
 - The `storyDriver.js` capture-phase `preventDefault()` fix (a genuinely separate native-submit race, described in the original entry) stays. It was real and independent of everything above.
 
 ### Browser closure evidence
