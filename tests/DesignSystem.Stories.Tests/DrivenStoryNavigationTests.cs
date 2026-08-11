@@ -113,8 +113,14 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 	}
 
 	// Register never transitions: its handler signs nobody in, so Success is an ordinary soft
-	// navigation to the server-resolved hop -- a boring wrong-render in the canvas, never a
-	// document load, never a nested doll.
+	// navigation to the server-resolved hop, not a forced reload -- correct for a real host. This
+	// assertion only proves that much; it does NOT prove the catalog is safe. A live BlazingStory
+	// iframe is its own running app instance, and a genuine NavigateTo from inside it resolves
+	// against the catalog's own routes -- reproduced live, 2026-08-11, the identical nested-doll
+	// symptom this file's own suppression tests exist to prevent. bUnit's BunitNavigationManager
+	// cannot see this: it captures the call instead of letting a real router act on it, which is
+	// exactly the gap that let this pass. Open, deferred, not fixed -- see KNOWN-ISSUES.md
+	// "Register: still open".
 	[Fact]
 	async Task An_unpinned_driven_register_story_soft_navigates_and_never_transitions()
 	{
