@@ -13,5 +13,8 @@ public enum StoryDriverMode
 	SubmitOnly = 1,
 
 	/// <summary>Fill valid-shaped values, then submit — the armed scenario's server state is the pinned state.</summary>
-	FillAndSubmit = 2
+	FillAndSubmit = 2,
+
+	/// <summary>Click the story's first button on load — for driving confirm-style pages (no form).</summary>
+	ClickOnly = 3
 }

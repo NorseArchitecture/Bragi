@@ -2,7 +2,7 @@
 
 ## BlazingStory canvas boots itself nested inside itself on a driven story
 
-**Status:** Root cause **re-diagnosed 2026-08-11**. The original entry blamed a third-party package; that was wrong. The cause was ours, in two independent mechanisms, both now closed. Believed fixed, **pending a browser run to confirm** — see "What is still unverified".
+**Status:** **Closed 2026-08-11.** Root cause was re-diagnosed the same day (see below) and both mechanisms that produced it were fixed upstream. The hazard that survived both fixes — described further down — is now also closed: the catalog's navigation is inert. Confirmed by a real browser run against the built catalog; see "Browser confirmation" at the bottom of this entry.
 
 **First observed:** 2026-08-08, while smoke-testing the story catalog after the `storyDriver.js` scenario-fake pattern shipped the same day.
 
@@ -56,16 +56,24 @@ The instrumented evidence the original entry collected actually fits `NavigateTo
 - **Both are now locked by tests.** `DrivenStoryNavigationTests` renders each driven story's real composition and asserts `BunitNavigationManager` recorded no navigation. `BunitNavigationManager` captures `NavigateTo` instead of performing it, which turns this browser-only symptom into an ordinary unit assertion.
 - The `storyDriver.js` capture-phase `preventDefault()` fix (a genuinely separate native-submit race, described in the original entry) stays. It was real and independent of everything above.
 
-### What is still unverified
+### The hazard that survived both fixes — now closed (2026-08-11)
 
-1. **No browser run has confirmed the fix.** The tests prove the ignition is unreachable in the component tree; they do not exercise BlazingStory, its iframe, or its router. Re-run the Playwright repro below against the current packages before closing this entry.
-2. **One loose end in the original evidence.** The original entry states a cold, direct load "reliably works". Mechanism 1 should have fired cold as well as warm, since it does not depend on scope disposal. Either that observation did not isolate `Register → Validation Errors` specifically, or it was confounded with the native-submit race (which was fixed in the same pass), or a third mechanism exists. Worth checking during the browser run rather than assuming.
+`Success` was simultaneously the value a released pin restores **and** the only scenario that performed a destructive navigation. So the failure mode of "this story lost its pin" was not a wrong render — it was the nested doll, again. Both mechanisms above were different routes to that same single point of ignition.
 
-### The hazard that survives both fixes
+**The durable fix landed:** the catalog's navigation is now inert. `RecordingSessionTransition` (`Norse.DesignSystem.Stories`) is the catalog's `ISessionTransition` — suppress-and-record instead of a real forced document load — registered by `AddNorseStoryFakes()` alongside the fake's own `Logout` arm. Login and Logout route their success continuation through the seam; Register never did (its handler signs nobody in, so it was always an ordinary soft `NavigateTo`, never a forced reload). A pinning gap now degrades to a boring wrong-render — a recorded `Begin` call nobody acts on, or a soft nav to a route the story sandbox doesn't mount — never a document load, never the nested doll. Full design: `../Glitnir/docs/Asgard/specs/2026-08-11-session-transition-seam-design.md`.
 
-`Success` is simultaneously the value a released pin restores **and** the only scenario that performs a destructive navigation. So the failure mode of "this story lost its pin" is not a wrong render — it is the nested doll, again. Both mechanisms above were different routes to that same single point of ignition.
+The characterization test is inverted, exactly as its own comment promised: `DrivenStoryNavigationTests.An_unpinned_driven_story_force_navigates_which_is_what_boots_the_catalog_nested` is gone, replaced by `An_unpinned_driven_login_story_begins_a_session_transition_the_catalog_suppresses` (plus siblings for Register's soft-nav and a confirmed Logout) — each asserting `SessionTransitions.Transitions` recorded what the suppressed seam saw, and `Navigation.History` stayed empty.
 
-The durable fix is to make the catalog's navigation inert, so that a pinning gap degrades to a boring wrong-render instead of re-booting the catalog. `DrivenStoryNavigationTests.An_unpinned_driven_story_force_navigates_which_is_what_boots_the_catalog_nested` is a characterization test pinning this behavior deliberately — it documents the live hazard rather than endorsing it, and should be inverted if and when the navigation is neutered.
+### Browser confirmation (2026-08-11)
+
+Ran the Investigation trail method below for real, against a freshly built `Hosting.Stories.Server`/`Hosting.Stories.Client` pair, hooking `beforeunload`/`pagehide`/`submit`/`requestSubmit` in the top frame **and** every iframe via `addInitScript`:
+
+- **Cold loads, all eight driven stories** (`Login → Locked Out/Invalid Credentials/Validation Errors/Not Allowed`, `Register → Validation Errors/Email Taken/Invalid Password`, `Logout → Sign-out Failed`) — zero `beforeunload`/`pagehide`/`submit`/`requestSubmit` events, in either frame. Every story iframe's `contentWindow.location.href` stayed on its own `viewMode=story&id=...` URL — no nested catalog boot, anywhere.
+- **Sibling re-entry** (`Login → Locked Out` → `Login → Invalid Credentials` → back to `Locked Out`, the exact sequence mechanism 2 needed) — zero events.
+- **`Logout → Sign-out Failed`** renders its alert: `"Sign-out failed — you are still signed in."` — confirmed by reading the iframe's DOM directly.
+- **Register's Success path** (`Register → Default`, ambient `Success`, submitted with a fresh email) — zero events, a JS marker set before submit survived after it (proof no document anywhere reloaded), top-level URL never left the story path. The soft-nav-to-nowhere is exactly the "boring wrong-render" the durable fix promised, not a forced reload.
+
+One loose end from the original evidence — a cold, direct load "reliably worked" even before either mechanism was fixed — is no longer worth chasing: both mechanisms are gone, and the browser run above found no residual forced-navigation behavior under any tested condition, cold or warm.
 
 ### Investigation trail, for anyone re-opening this
 

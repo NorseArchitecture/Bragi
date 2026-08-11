@@ -63,7 +63,14 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 		});
 
 	public Task<Outcome<NavigationResult>> Logout(CancellationToken cancellationToken = default) =>
-		throw new NotImplementedException("Logout is a non-visual component and should never be in a story");
+		Task.FromResult(scenario.Value switch
+		{
+			AuthenticationScenario.Success =>
+				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
+			AuthenticationScenario.Fault =>
+				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
+			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to Logout."),
+		});
 
 	public Task<Outcome<NavigationResult>> Register(RegisterRequest request, CancellationToken cancellationToken = default) =>
 		Task.FromResult(scenario.Value switch

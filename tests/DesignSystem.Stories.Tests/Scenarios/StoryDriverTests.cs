@@ -125,6 +125,42 @@ public sealed class StoryDriverTests : BunitContext
 				parameters.Add(p => p.Mode, StoryDriverMode.Unspecified)));
 	}
 
+	[Fact]
+	void Click_only_invokes_the_click_driver_and_reports_complete()
+	{
+		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
+		var driveClick = module.Setup<bool>("driveClick", _ => true);
+		var component = Render<StoryDriver>(parameters =>
+			parameters
+				.Add(p => p.Mode, StoryDriverMode.ClickOnly)
+				.AddChildContent("<button>Log out</button>"));
+
+		var marker = component.Find("[data-norse-story-driver-state]");
+		marker.GetAttribute("data-norse-story-driver-state").ShouldBe("pending");
+		var invocation = module.Invocations["driveClick"].Single();
+		invocation.Arguments.Count.ShouldBe(1);
+		invocation.Arguments[0].ShouldBeElementReferenceTo(marker);
+
+		driveClick.SetResult(true);
+		component.WaitForAssertion(() =>
+			component.Find("[data-norse-story-driver-state]")
+				.GetAttribute("data-norse-story-driver-state").ShouldBe("complete"));
+	}
+
+	[Fact]
+	async Task A_click_driver_that_finds_no_button_throws()
+	{
+		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
+		var driveClick = module.Setup<bool>("driveClick", _ => true);
+		Render<StoryDriver>(parameters =>
+			parameters.Add(p => p.Mode, StoryDriverMode.ClickOnly));
+
+		driveClick.SetResult(false);
+		(await Renderer.UnhandledException)
+			.ShouldBeOfType<InvalidOperationException>()
+			.Message.ShouldBe("StoryDriver found no button to drive.");
+	}
+
 	static void AssertDriveArguments(
 		JSRuntimeInvocation invocation,
 		IElement expectedWrapper,

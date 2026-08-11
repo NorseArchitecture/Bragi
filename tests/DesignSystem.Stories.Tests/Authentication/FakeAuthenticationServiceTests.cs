@@ -145,8 +145,25 @@ public sealed class FakeAuthenticationServiceTests
 	}
 
 	[Fact]
-	async Task Logout_throws_because_a_non_visual_component_never_earns_a_story()
+	async Task Logout_under_Success_returns_the_root_next_url()
 	{
-		await Should.ThrowAsync<NotImplementedException>(() => CreateFake(AuthenticationScenario.Success).Logout(TestContext.Current.CancellationToken));
+		var outcome = await CreateFake(AuthenticationScenario.Success).Logout(TestContext.Current.CancellationToken);
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/");
+	}
+
+	[Fact]
+	async Task Logout_under_Fault_pins_the_catalog_correlation_id()
+	{
+		var outcome = await CreateFake(AuthenticationScenario.Fault).Logout(TestContext.Current.CancellationToken);
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		failed.Problem.Category.ShouldBe(ErrorCategory.Fault);
+	}
+
+	[Fact]
+	async Task Logout_under_an_inapplicable_scenario_throws_the_authoring_error()
+	{
+		await Should.ThrowAsync<InvalidOperationException>(() =>
+			CreateFake(AuthenticationScenario.LockedOut).Logout(TestContext.Current.CancellationToken));
 	}
 }

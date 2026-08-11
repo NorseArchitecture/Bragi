@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { drive } from "../../../src/DesignSystem.Stories/wwwroot/storyDriver.js";
+import { drive, driveClick } from "../../../src/DesignSystem.Stories/wwwroot/storyDriver.js";
 
 class TestMutationObserver {
 	constructor(callback) {
@@ -78,4 +78,41 @@ test("drive submits only the form beneath its supplied story root", async () => 
 	assert.equal(driven, true);
 	assert.equal(currentSubmissions, 1);
 	assert.equal(staleSubmissions, 0);
+});
+
+test("driveClick clicks the story's button and resolves only after the observer settles", async () => {
+	let clicks = 0;
+	const root = {
+		observer: undefined,
+		querySelector(selector) {
+			assert.equal(selector, "button");
+			return button;
+		}
+	};
+	const button = {
+		click() {
+			clicks++;
+			// The DOM change the click causes lands on the observer AFTER the click — the settle
+			// promise must not resolve before this callback runs.
+			setTimeout(() => root.observer.callback(), 0);
+		}
+	};
+
+	const driven = await driveClick(root);
+
+	assert.equal(driven, true);
+	assert.equal(clicks, 1);
+});
+
+test("driveClick resolves false when no button ever appears", async () => {
+	const root = {
+		observer: undefined,
+		querySelector() {
+			return null;
+		}
+	};
+
+	const driven = await driveClick(root);
+
+	assert.equal(driven, false);
 });

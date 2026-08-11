@@ -1,0 +1,20 @@
+@attribute [Stories("Authentication/Logout")]
+<Stories TComponent="Logout">
+    @* Confirm state: the page renders a click-to-confirm button and performs nothing on load. The
+       suppressed-transition success state renders identically, so it is asserted in
+       DrivenStoryNavigationTests rather than staged as a story that would show nothing. *@
+    <Story Name="Default">
+        <Template>
+            <Logout />
+        </Template>
+    </Story>
+    <Story Name="Sign-out Failed">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.Fault">
+                <StoryDriver @key="@("logout-failed")" Mode="StoryDriverMode.ClickOnly">
+                    <Logout />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

@@ -36,9 +36,13 @@
 		if (Mode is StoryDriverMode.Unspecified)
 			throw new InvalidOperationException("StoryDriver requires an explicit mode.");
 		_module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Norse.DesignSystem.Stories/storyDriver.js");
-		var driven = await _module.InvokeAsync<bool>("drive", _root, Mode is StoryDriverMode.FillAndSubmit, Email, Password);
+		var driven = Mode is StoryDriverMode.ClickOnly ?
+			await _module.InvokeAsync<bool>("driveClick", _root) :
+			await _module.InvokeAsync<bool>("drive", _root, Mode is StoryDriverMode.FillAndSubmit, Email, Password);
 		if (!driven)
-			throw new InvalidOperationException("StoryDriver found no form to drive.");
+			throw new InvalidOperationException(Mode is StoryDriverMode.ClickOnly ?
+				"StoryDriver found no button to drive." :
+				"StoryDriver found no form to drive.");
 
 		_state = "complete";
 		StateHasChanged();
