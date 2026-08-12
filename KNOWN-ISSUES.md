@@ -20,7 +20,7 @@ result => Navigation.NavigateTo(result.NextUrl, forceLoad: true)
 
 `forceLoad: true` is a **real document load**. Performed inside BlazingStory's canvas iframe, it navigates that iframe to the app root — which boots the whole catalog inside the preview pane. That is the nested doll. There is no third-party bug involved.
 
-So the question was only ever: *how did a driven story reach the `Success` branch?* Two ways, both real:
+So the question was only ever: *how did a driven story reach the `Success` branch?* Three ways, all real:
 
 **1. The shadowed validation call (`Register → Validation Errors`).** That story pins no scenario at all — it runs on the ambient default, which is `Success`. Its only protection was Register's own guard:
 
@@ -32,6 +32,8 @@ if (!await editContext.ValidateAsync())   // extension style
 .NET 11 added an instance `EditContext.ValidateAsync(CancellationToken)`. C# binds instance methods ahead of extension methods, so this silently retargeted away from Blazilla's `EditContextExtensions.ValidateAsync` and returned `true` for everything. The empty form sailed through to the fake, got `Success`, and force-navigated. Verified by inspection of the shipped artifact: this line was live in Heimdall's committed history from `cbfbd91` until `7cc696f`, i.e. in **every published package up to and including v0.0.14**.
 
 **2. Scenario pin loss (`Login → Locked Out`, `Register → Invalid Password`).** These stories do pin a failing scenario, and a failing scenario returns `Failed` and never navigates. But before the single-slot pin ownership fix (PR #24), a disposing predecessor scope could reset the slot — and the value it reset to is the constructor initial value, which is `Success`. A story running unpinned gets `Success`, gets `NextUrl = "/"`, and force-navigates. **This is what produced the re-entry correlation**: dispose ordering only bites when you navigate between stories, which is exactly the condition the original entry attributed to iframe pooling.
+
+**3. Document-global driver selection (`Register → Default` to `Register → Validation Errors`).** Before Bragi v0.0.9, the incoming driver's `document.querySelector("form")` could select the departing Default story's form during a persistent-canvas transition. The driver submitted that stale form instead of its own Validation Errors form; the departing Blazor handler ran under ambient `Success`, received `NextUrl = "/"`, and followed the same `forceLoad: true` path. Bragi v0.0.9 passed the rendered StoryDriver wrapper into JavaScript and changed discovery to wrapper-scoped `root.querySelector('form')`, so an incoming driver cannot submit a departing sibling story's form.
 
 ### Why the original diagnosis was wrong
 
@@ -53,7 +55,8 @@ The instrumented evidence the original entry collected actually fits `NavigateTo
 
 - **Mechanism 1 is closed twice over.** Asgard's `OutcomeFormComponentBase.SubmitAsync` now owns the validation gate for every form on the platform, calling Blazilla in static-invocation style so the shadowing cannot recur, and refusing to dispatch a form that has no `FormValidator` attached (a validator-less form validates to `true` with zero messages — indistinguishable from a valid one after the fact). Heimdall's hand-rolled guard is deleted; page authors no longer write validation logic at all. Asgard v0.0.26 / Heimdall v0.0.15 / Mímir v0.0.6.
 - **Mechanism 2 is closed** by single-slot pin ownership with reference-identity release (PR #24) — a superseded scope's disposal is a no-op, so a predecessor can no longer reset a live successor's pin.
-- **Both are now locked by tests.** `DrivenStoryNavigationTests` renders each driven story's real composition and asserts `BunitNavigationManager` recorded no navigation. `BunitNavigationManager` captures `NavigateTo` instead of performing it, which turns this browser-only symptom into an ordinary unit assertion.
+- **Mechanism 3 is closed** by Bragi v0.0.9's wrapper-scoped form discovery. Its real-module two-form regression mounts an external stale form beside the incoming wrapper and proves only the wrapper-owned form is submitted.
+- **All three are now locked by tests.** `DrivenStoryNavigationTests` renders each driven story's real composition and asserts `BunitNavigationManager` recorded no navigation. `BunitNavigationManager` captures `NavigateTo` instead of performing it, which turns the force-load ignition into an ordinary unit assertion; the StoryDriver module regression independently locks the form-selection boundary.
 - The `storyDriver.js` capture-phase `preventDefault()` fix (a genuinely separate native-submit race, described in the original entry) stays. It was real and independent of everything above.
 
 ### The hazard that survived both fixes — closed for Login/Logout, open for Register (2026-08-11)
