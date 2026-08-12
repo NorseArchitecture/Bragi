@@ -2,6 +2,7 @@ using Bunit;
 using Bunit.TestDoubles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FluentUI.AspNetCore.Components;
+using Norse.AuthN.Components;
 using Norse.AuthN.Components.FluentUI;
 using Norse.Reference.Components.FluentUI;
 using Norse.DesignSystem.Stories.Authentication;
@@ -11,12 +12,9 @@ using Norse.DesignSystem.Stories.Scenarios;
 namespace Norse.DesignSystem.Stories.Tests;
 
 /// <summary>
-///     The nested-doll lock. A driven story that reaches the fake's <c>Success</c> branch gets back
-///     <c>NextUrl = "/"</c>, and both auth forms navigate it with <c>forceLoad: true</c> — a real
-///     document load, inside BlazingStory's canvas iframe, which boots the whole catalog inside the
-///     preview pane. Browser-only as a symptom; the ignition is plain C#, and
-///     <see cref="BunitNavigationManager" /> records navigation instead of performing it, so every
-///     driven story can assert it here. See KNOWN-ISSUES.md.
+///     The nested-doll lock. A driven story that reaches the fake's <c>Success</c> branch records a
+///     suppressed transition instead of navigating; these tests are where pin loss stays loud. See
+///     KNOWN-ISSUES.md.
 /// </summary>
 public sealed class DrivenStoryNavigationTests : BunitContext
 {
@@ -31,6 +29,9 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 	BunitNavigationManager Navigation =>
 		Services.GetRequiredService<BunitNavigationManager>();
 
+	RecordingSessionTransition SessionTransitions =>
+		Services.GetRequiredService<RecordingSessionTransition>();
+
 	// Login / "Validation Errors" -- SubmitOnly, no ScenarioScope, so the ambient scenario is Success.
 	// Nothing but the client-side gate stands between an empty submit and a forced navigation to "/".
 	[Fact]
@@ -41,6 +42,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 		story.Markup.ShouldContain("must not be empty");
 	}
 
@@ -56,6 +58,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 		story.Markup.ShouldContain("must not be empty");
 	}
 
@@ -73,6 +76,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 	}
 
 	[Theory]
@@ -89,24 +93,59 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 	}
 
-	// Characterization, not aspiration: this documents the ignition the other tests exist to keep
-	// unreachable. Success is simultaneously the scenario a released pin restores and the only one
-	// that navigates, so a driven story that loses its pin does not render wrong -- it boots the
-	// catalog inside its own canvas. Deleting this test does not make the hazard go away; making the
-	// catalog's navigation inert would.
+	// Inverted 2026-08-11 -- the ignition is neutered, exactly as the old characterization test's own
+	// comment demanded. An unpinned driven Login story that reaches the fake's Success arm now begins
+	// a session transition the catalog suppresses and records: pin loss stays a loud CI failure HERE,
+	// and the canvas stops paying for it with a nested catalog.
 	[Fact]
-	async Task An_unpinned_driven_story_force_navigates_which_is_what_boots_the_catalog_nested()
+	async Task An_unpinned_driven_login_story_begins_a_session_transition_the_catalog_suppresses()
+	{
+		var story = Render<Login>();
+		Fill(story, "designer@example.com", "aaaaaaaa");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
+	}
+
+	// Register never transitions: its handler signs nobody in, so Success is an ordinary soft
+	// navigation to the server-resolved hop, not a forced reload -- correct for a real host. This
+	// assertion only proves that much; it does NOT prove the catalog is safe. A live BlazingStory
+	// iframe is its own running app instance, and a genuine NavigateTo from inside it resolves
+	// against the catalog's own routes -- reproduced live, 2026-08-11, the identical nested-doll
+	// symptom this file's own suppression tests exist to prevent. bUnit's BunitNavigationManager
+	// cannot see this: it captures the call instead of letting a real router act on it, which is
+	// exactly the gap that let this pass. Open, deferred, not fixed -- see KNOWN-ISSUES.md
+	// "Register: still open".
+	[Fact]
+	async Task An_unpinned_driven_register_story_soft_navigates_and_never_transitions()
 	{
 		var story = Render<Register>();
 		Fill(story, "designer@example.com", "aaaaaaaa");
 
 		await story.Find("form").SubmitAsync();
 
+		SessionTransitions.Transitions.ShouldBeEmpty();
 		var navigation = Navigation.History.ShouldHaveSingleItem();
+		navigation.Options.ForceLoad.ShouldBeFalse();
 		navigation.Uri.ShouldBe("/");
-		navigation.Options.ForceLoad.ShouldBeTrue();
+	}
+
+	// The suppressed-success state renders identically to the confirm state, so the catalog stages
+	// no story for it -- this fact is where that state lives, loudly.
+	[Fact]
+	void A_confirmed_logout_begins_a_suppressed_session_transition()
+	{
+		var page = Render<Logout>();
+
+		page.Find("button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
 	}
 
 	// The Reference family has no navigating success path today -- CountryLookup's continuation only
@@ -120,6 +159,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 		story.Markup.ShouldContain("Enter a country code.");
 	}
 
@@ -132,6 +172,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 		story.Markup.ShouldContain("United States");
 	}
 
@@ -146,6 +187,7 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		await story.Find("form").SubmitAsync();
 
 		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
 	}
 
 	// Mirrors storyDriver.js: fill every text input the story exposes, in order.

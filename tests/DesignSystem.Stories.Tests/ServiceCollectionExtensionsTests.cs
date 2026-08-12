@@ -54,4 +54,12 @@ public sealed class ServiceCollectionExtensionsTests
 		using var provider = Build();
 		provider.GetRequiredService<IReferenceService>().ShouldBeSameAs(provider.GetRequiredService<IReferenceService>());
 	}
+
+	[Fact]
+	void Registers_the_recorder_as_the_catalogs_session_transition()
+	{
+		using var provider = Build();
+		provider.GetRequiredService<ISessionTransition>()
+			.ShouldBeSameAs(provider.GetRequiredService<RecordingSessionTransition>());
+	}
 }

@@ -115,3 +115,18 @@ export async function drive(root, fill, email, password) {
 	}
 	return false;
 }
+
+export async function driveClick(root) {
+	for (let attempt = 0; attempt < maxTries; attempt++) {
+		const button = root.querySelector("button");
+		if (button) {
+			const settled = waitForPostSubmitSettle(root, true);
+			button.click();
+			settled.markSubmitted();
+			await settled.completion;
+			return true;
+		}
+		await new Promise(resolve => setTimeout(resolve, delayMs));
+	}
+	return false;
+}
