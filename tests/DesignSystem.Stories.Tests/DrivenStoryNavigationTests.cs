@@ -43,7 +43,12 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 
 		Navigation.History.ShouldBeEmpty();
 		SessionTransitions.Transitions.ShouldBeEmpty();
-		story.Markup.ShouldContain("must not be empty");
+		// WaitForAssertion, not a direct check: Blazilla 2.4.1's FluentValidator.OnValidationRequested
+		// races its own re-render trigger (a fire-and-forget InvokeAsync(NotifyValidationStateChanged))
+		// against the same awaited task SubmitAsync resolves on. The message store is populated
+		// deterministically by the time SubmitAsync returns; whether the render committing it into
+		// Markup has landed yet is not. Same shape at every other post-submit Markup assertion below.
+		story.WaitForAssertion(() => story.Markup.ShouldContain("must not be empty"));
 	}
 
 	// Register / "Validation Errors" -- the same shape, and the one that was actually broken: its only
@@ -59,7 +64,8 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 
 		Navigation.History.ShouldBeEmpty();
 		SessionTransitions.Transitions.ShouldBeEmpty();
-		story.Markup.ShouldContain("must not be empty");
+		// Same Blazilla FluentValidator re-render race as Login's version of this test, above.
+		story.WaitForAssertion(() => story.Markup.ShouldContain("must not be empty"));
 	}
 
 	[Theory]
@@ -160,7 +166,8 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 
 		Navigation.History.ShouldBeEmpty();
 		SessionTransitions.Transitions.ShouldBeEmpty();
-		story.Markup.ShouldContain("Enter a country code.");
+		// Same Blazilla FluentValidator re-render race as Login's version of this test, above.
+		story.WaitForAssertion(() => story.Markup.ShouldContain("Enter a country code."));
 	}
 
 	[Fact]
