@@ -26,20 +26,22 @@ public static class ServiceCollectionExtensions
 		///     states with no server context, plus the <see cref="RecordingSessionTransition" /> that stands
 		///     in for <see cref="ISessionTransition" />. Also registers the real client-side validators
 		///     (Asgard's <c>FormValidator</c> resolves them from DI) — the async email-availability rule
-		///     rides the fake, so driven Register stories validate against catalog truth. Singletons
-		///     deliberately: WASM makes scoped effectively singleton anyway — say what you mean.
+		///     rides the fake, so driven Register stories validate against catalog truth. Scoped
+		///     deliberately: the story host is a Blazor Server composition, and DI scope is the framework's
+		///     own per-circuit boundary — each visitor's session gets its own fake, scenario, and
+		///     session-transition recorder, with no state bleeding across circuits.
 		/// </summary>
 		/// <returns>The same service collection instance.</returns>
 		public IServiceCollection AddNorseStoryFakes() =>
 			services
-				.AddSingleton(new Scenario<AuthenticationScenario>(AuthenticationScenario.Success))
-				.AddSingleton<IAuthenticationService, FakeAuthenticationService>()
-				.AddSingleton<RecordingSessionTransition>()
-				.AddSingleton<ISessionTransition>(static provider => provider.GetRequiredService<RecordingSessionTransition>())
-				.AddSingleton<IValidator<LoginRequest>, LoginRequestValidator>()
-				.AddSingleton<IValidator<RegisterRequest>, RegisterRequestValidator>()
-				.AddSingleton(new Scenario<ReferenceScenario>(ReferenceScenario.Success))
-				.AddSingleton<IReferenceService, FakeReferenceService>()
-				.AddSingleton<IValidator<CountryRequest>, CountryRequestValidator>();
+				.AddScoped(static _ => new Scenario<AuthenticationScenario>(AuthenticationScenario.Success))
+				.AddScoped<IAuthenticationService, FakeAuthenticationService>()
+				.AddScoped<RecordingSessionTransition>()
+				.AddScoped<ISessionTransition>(static provider => provider.GetRequiredService<RecordingSessionTransition>())
+				.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>()
+				.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>()
+				.AddScoped(static _ => new Scenario<ReferenceScenario>(ReferenceScenario.Success))
+				.AddScoped<IReferenceService, FakeReferenceService>()
+				.AddScoped<IValidator<CountryRequest>, CountryRequestValidator>();
 	}
 }

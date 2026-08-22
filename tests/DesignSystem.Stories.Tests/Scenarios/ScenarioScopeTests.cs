@@ -11,6 +11,9 @@ public sealed class ScenarioScopeTests : BunitContext
 {
 	readonly Scenario<AuthenticationScenario> _scenario = new(AuthenticationScenario.Success);
 
+	// Singleton here is instance registration, not a host-lifetime choice: bUnit's own DI container
+	// resolves the exact _scenario this test holds so it can assert against it directly. Unrelated
+	// to AddNorseStoryFakes()'s Scoped registration of the real host composition.
 	public ScenarioScopeTests() =>
 		Services.AddSingleton(_scenario);
 
