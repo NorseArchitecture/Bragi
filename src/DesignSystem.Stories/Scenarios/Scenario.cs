@@ -1,16 +1,18 @@
 namespace Norse.DesignSystem.Stories.Scenarios;
 
 /// <summary>
-///     The ambient scenario a story pins its fake family into. Registered as a singleton per fake
-///     family, constructed with that family's initial (happy-path) value — the constructor argument,
-///     not the enum's CLR default, is why an unwrapped story renders success while <c>0</c> stays the
-///     platform-law sentinel. Pins are single-slot and non-composing: the newest pin supersedes the
-///     prior owner, disposing a stale pin is a no-op, and disposing the current pin restores the
-///     constructor initial value, never a superseded pin's value. Reference identity rejects stale
-///     disposal; the lock only keeps value reads and owner/value transitions coherent. A superseded
-///     scope that remains mounted after its successor is released does not regain ownership: the slot
-///     stays at its initial value unless that stale scope re-renders, at which point repinning fails
-///     loudly rather than silently stealing the slot.
+///     The ambient scenario a story pins its fake family into. Registered as scoped per fake family,
+///     constructed with that family's initial (happy-path) value — the constructor argument, not the
+///     enum's CLR default, is why an unwrapped story renders success while <c>0</c> stays the
+///     platform-law sentinel. Scoped deliberately: the story host is a Blazor Server composition, and
+///     DI scope is the framework's own per-circuit boundary — one visitor's circuit gets its own
+///     instance, with no state bleeding across circuits. Pins are single-slot and non-composing: the
+///     newest pin supersedes the prior owner, disposing a stale pin is a no-op, and disposing the
+///     current pin restores the constructor initial value, never a superseded pin's value. Reference
+///     identity rejects stale disposal; the lock only keeps value reads and owner/value transitions
+///     coherent. A superseded scope that remains mounted after its successor is released does not
+///     regain ownership: the slot stays at its initial value unless that stale scope re-renders, at
+///     which point repinning fails loudly rather than silently stealing the slot.
 ///     <see cref="ScenarioScope{TScenario}" /> is the only writer.
 /// </summary>
 /// <param name="initialValue">The family's happy-path value, restored when the current pin is released.</param>
