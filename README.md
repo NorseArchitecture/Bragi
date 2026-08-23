@@ -10,7 +10,7 @@
 
 Bragi is the story: **`Norse.DesignSystem.Stories`** — a Razor Class Library of `.stories.razor` catalog pages and Markdown documentation (via `MD2RazorGenerator`) for the platform's Blazor components. Bragi doesn't build the ship; he sings of everything aboard it.
 
-Bragi ships no runnable app of its own. Yggdrasil hosts the runnable BlazingStory catalog built from it (`Hosting.Stories.Client`/`.Server`), published as a container to `ghcr.io/norsearchitecture/hosting/stories` — the `BlazingStory` package reference here is purely the `.stories.razor` authoring API, a content-authoring dependency, not a hosting one.
+Bragi ships no runnable app of its own. Yggdrasil hosts the runnable BlazingStory catalog built from it (`Hosting.Stories`, Blazor Interactive Server), published as a container to `ghcr.io/norsearchitecture/hosting/stories` — the `BlazingStory` package reference here is purely the `.stories.razor` authoring API, a content-authoring dependency, not a hosting one.
 
 ## The catalog
 
