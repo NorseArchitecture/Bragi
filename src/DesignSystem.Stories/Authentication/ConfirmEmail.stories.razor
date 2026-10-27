@@ -1,0 +1,41 @@
+@attribute [Stories("Authentication/Confirm Email")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="ConfirmEmailPanel">
+    @* Click-to-confirm, never on load: the panel takes the emailed link's userId and code as plain
+       parameters (the routable ConfirmEmail shim reads them from the query), so the stories pass the
+       synthetic "story" pair, and the driven states click the confirm button. Success renders in place. *@
+    <Story Name="Confirm">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <ConfirmEmailPanel UserId="story" Code="story" @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Confirmed">
+        <Template>
+            <StoryDriver @key="@("confirm-email-confirmed")" Mode="StoryDriverMode.ClickOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <ConfirmEmailPanel UserId="story" Code="story" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Failed">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.EmailConfirmationFailed">
+                <StoryDriver @key="@("confirm-email-failed")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <ConfirmEmailPanel UserId="story" Code="story" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Invalid Link">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <ConfirmEmailPanel />
+            </LayoutView>
+        </Template>
+    </Story>
+</Stories>

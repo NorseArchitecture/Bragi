@@ -28,5 +28,20 @@ enum AuthenticationScenario
 	RegistrationValidation = 6,
 
 	/// <summary>An unmapped failure with the fixed catalog correlation id.</summary>
-	Fault = 7
+	Fault = 7,
+
+	/// <summary>Login succeeded on the password but the account demands a second factor.</summary>
+	TwoFactorRequired = 8,
+
+	/// <summary>Two-factor sign-in rejected because the authenticator code is wrong.</summary>
+	InvalidTwoFactorCode = 9,
+
+	/// <summary>Recovery-code sign-in rejected because the recovery code is wrong.</summary>
+	InvalidRecoveryCode = 10,
+
+	/// <summary>Password reset rejected because the emailed reset code is invalid or expired.</summary>
+	InvalidResetToken = 11,
+
+	/// <summary>Email confirmation (or email-change confirmation) rejected because the code is invalid.</summary>
+	EmailConfirmationFailed = 12
 }

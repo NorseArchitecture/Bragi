@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Norse.AuthN.Components;
 using Norse.AuthN.Components.FluentUI;
+using Norse.AuthN.Services;
 using Norse.Reference.Components.FluentUI;
 using Norse.DesignSystem.Stories.Authentication;
 using Norse.DesignSystem.Stories.Reference;
@@ -152,6 +153,158 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 
 		Navigation.History.ShouldBeEmpty();
 		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
+	}
+
+	// Train 1 surfaces. TwoFactorForm, RecoveryCodeForm and ConfirmEmailChangePanel change the principal,
+	// so their Success arms begin a session transition the catalog suppresses and records -- the same lock
+	// Login carries. ForgotPassword and ResetPasswordForm change no principal: Success is an ordinary
+	// soft navigation, the Register shape, with the same live-iframe caveat (KNOWN-ISSUES.md), which is
+	// why the catalog stages no driven success story for either.
+	[Fact]
+	async Task A_two_factor_success_records_one_transition_and_no_history()
+	{
+		var story = Render<TwoFactorForm>(parameters => parameters.Add(form => form.Challenge, "story"));
+		Fill(story, "123456");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
+	}
+
+	[Theory]
+	[InlineData(AuthenticationScenario.InvalidTwoFactorCode)]
+	[InlineData(AuthenticationScenario.LockedOut)]
+	async Task A_pinned_two_factor_story_renders_its_state_without_navigating(AuthenticationScenario scenario)
+	{
+		var story = Render<ScenarioScope<AuthenticationScenario>>(parameters => parameters
+			.Add(scope => scope.Value, scenario)
+			.AddChildContent<TwoFactorForm>(form => form.Add(twoFactor => twoFactor.Challenge, "story")));
+		Fill(story, "000000");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+	}
+
+	// Login / "Two-Factor Required" -- FillAndSubmit under TwoFactorRequired: the fake answers Ok with the
+	// challenge hop, Login begins a session transition to it, and the catalog suppresses and records it.
+	[Fact]
+	async Task A_two_factor_required_login_story_records_one_transition_to_the_challenge()
+	{
+		var story = Render<ScenarioScope<AuthenticationScenario>>(parameters => parameters
+			.Add(scope => scope.Value, AuthenticationScenario.TwoFactorRequired)
+			.AddChildContent<Login>());
+		Fill(story, "designer@example.com", "aaaaaaaa");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/LoginWith2fa?challenge=story");
+	}
+
+	[Fact]
+	async Task A_recovery_code_success_records_one_transition()
+	{
+		var story = Render<RecoveryCodeForm>(parameters => parameters.Add(form => form.Challenge, "story"));
+		Fill(story, "3XK9-7QRT");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
+	}
+
+	[Fact]
+	async Task A_forgot_password_success_records_one_soft_navigation()
+	{
+		var story = Render<ForgotPassword>();
+		Fill(story, "designer@example.com");
+
+		await story.Find("form").SubmitAsync();
+
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		var navigation = Navigation.History.ShouldHaveSingleItem();
+		navigation.Options.ForceLoad.ShouldBeFalse();
+		navigation.Uri.ShouldBe("/Account/ForgotPasswordConfirmation");
+	}
+
+	// ForgotPassword / "Validation Errors" -- SubmitOnly under the ambient Success. The email gate must
+	// stop an empty submit client-side: the substituted service proves nothing was dispatched, and the
+	// empty history and transition list guard that no navigation happened either.
+	[Fact]
+	async Task An_empty_forgot_password_submit_renders_the_email_required_message()
+	{
+		var authentication = Substitute.For<IAuthenticationService>();
+		Services.AddScoped(_ => authentication);
+		var story = Render<ForgotPassword>();
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		_ = authentication.DidNotReceiveWithAnyArgs().ForgotPassword(default!, Xunit.TestContext.Current.CancellationToken);
+		// Same Blazilla FluentValidator re-render race as Login's version of this test, above.
+		story.WaitForAssertion(() => story.Markup.ShouldContain("Enter your email address."));
+	}
+
+	[Fact]
+	async Task A_reset_password_success_records_one_soft_navigation()
+	{
+		var story = Render<ResetPasswordForm>(parameters => parameters.Add(form => form.Code, "story"));
+		Fill(story, "designer@example.com", "aaaaaaaa");
+
+		await story.Find("form").SubmitAsync();
+
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		var navigation = Navigation.History.ShouldHaveSingleItem();
+		navigation.Options.ForceLoad.ShouldBeFalse();
+		navigation.Uri.ShouldBe("/Account/ResetPasswordConfirmation");
+	}
+
+	[Fact]
+	void A_confirm_email_click_renders_in_place_with_no_navigation()
+	{
+		var story = Render<ConfirmEmailPanel>(parameters => parameters
+			.Add(panel => panel.UserId, "story")
+			.Add(panel => panel.Code, "story"));
+
+		story.Find("fluent-button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		story.Markup.ShouldContain("Thank you for confirming your email.");
+	}
+
+	[Fact]
+	void A_confirm_email_change_click_records_one_transition()
+	{
+		var story = Render<ConfirmEmailChangePanel>(parameters => parameters
+			.Add(panel => panel.UserId, "story")
+			.Add(panel => panel.Email, "designer@example.com")
+			.Add(panel => panel.Code, "story"));
+
+		story.Find("fluent-button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/Login");
+	}
+
+	[Fact]
+	void A_failed_confirm_email_story_records_nothing()
+	{
+		var story = Render<ScenarioScope<AuthenticationScenario>>(parameters => parameters
+			.Add(scope => scope.Value, AuthenticationScenario.EmailConfirmationFailed)
+			.AddChildContent<ConfirmEmailPanel>(panel => panel
+				.Add(confirm => confirm.UserId, "story")
+				.Add(confirm => confirm.Code, "story")));
+
+		story.Find("fluent-button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		story.Markup.ShouldContain("Error confirming your email.");
 	}
 
 	// The Reference family has no navigating success path today -- CountryLookup's continuation only

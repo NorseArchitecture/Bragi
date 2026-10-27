@@ -40,6 +40,13 @@ public static class ServiceCollectionExtensions
 				.AddScoped<ISessionTransition>(static provider => provider.GetRequiredService<RecordingSessionTransition>())
 				.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>()
 				.AddScoped<IValidator<RegisterRequest>, RegisterRequestValidator>()
+				.AddScoped<IValidator<TwoFactorSignInRequest>, TwoFactorSignInRequestValidator>()
+				.AddScoped<IValidator<RecoveryCodeSignInRequest>, RecoveryCodeSignInRequestValidator>()
+				.AddScoped<IValidator<ForgotPasswordRequest>, ForgotPasswordRequestValidator>()
+				.AddScoped<IValidator<ResetPasswordRequest>, ResetPasswordRequestValidator>()
+				.AddScoped<IValidator<ConfirmEmailRequest>, ConfirmEmailRequestValidator>()
+				.AddScoped<IValidator<ConfirmEmailChangeRequest>, ConfirmEmailChangeRequestValidator>()
+				.AddScoped<IValidator<ResendEmailConfirmationRequest>, ResendEmailConfirmationRequestValidator>()
 				.AddScoped(static _ => new Scenario<ReferenceScenario>(ReferenceScenario.Success))
 				.AddScoped<IReferenceService, FakeReferenceService>()
 				.AddScoped<IValidator<CountryRequest>, CountryRequestValidator>();

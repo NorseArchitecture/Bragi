@@ -118,7 +118,9 @@ export async function drive(root, fill, email, password) {
 
 export async function driveClick(root) {
 	for (let attempt = 0; attempt < maxTries; attempt++) {
-		const button = root.querySelector("button");
+		// FluentButton renders a <fluent-button> host with no light-DOM <button>; Blazor's click
+		// handler sits on that host, so clicking it drives the confirm the same as a native button.
+		const button = root.querySelector("button, fluent-button");
 		if (button) {
 			const settled = waitForPostSubmitSettle(root, true);
 			button.click();

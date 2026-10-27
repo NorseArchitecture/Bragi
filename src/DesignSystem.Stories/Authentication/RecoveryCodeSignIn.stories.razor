@@ -1,0 +1,41 @@
+@attribute [Stories("Authentication/Recovery Code Sign-In")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="RecoveryCodeForm">
+    @* Same shape as Two-Factor: the synthetic challenge "story" stands in for the token the routable
+       LoginWithRecoveryCode shim reads from the query, and the StoryDriver's Email value carries the
+       recovery code, this form's only text input. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <RecoveryCodeForm Challenge="story" @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("recovery-code-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <RecoveryCodeForm Challenge="story" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Invalid Code">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.InvalidRecoveryCode">
+                <StoryDriver @key="@("recovery-code-invalid-code")" Mode="StoryDriverMode.FillAndSubmit" Email="0000-0000">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <RecoveryCodeForm Challenge="story" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Expired Challenge">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <RecoveryCodeForm />
+            </LayoutView>
+        </Template>
+    </Story>
+</Stories>
