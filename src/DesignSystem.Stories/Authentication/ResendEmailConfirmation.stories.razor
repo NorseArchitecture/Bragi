@@ -1,0 +1,31 @@
+@attribute [Stories("Authentication/Resend Email Confirmation")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="ResendEmailConfirmation">
+    @* The server acknowledges every address identically, so success renders the sent message in place --
+       no navigation, no session transition -- and "Sent" is safe to drive. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <ResendEmailConfirmation @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("resend-email-confirmation-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <ResendEmailConfirmation />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Sent">
+        <Template>
+            <StoryDriver @key="@("resend-email-confirmation-sent")" Mode="StoryDriverMode.FillAndSubmit">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <ResendEmailConfirmation />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+</Stories>

@@ -1,8 +1,58 @@
 @attribute [Stories("Authentication/Two-Factor")]
-<Stories TComponent="Lockout">
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="TwoFactorForm">
+    @* The form takes the opaque challenge as a plain parameter (the routable LoginWith2fa shim reads it
+       from the query), so every story but "Expired Challenge" passes the synthetic token "story". The
+       StoryDriver fills every text input with its Email value, and the authenticator code is this
+       form's only text input -- so Email carries the code. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <TwoFactorForm Challenge="story" @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("two-factor-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <TwoFactorForm Challenge="story" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Invalid Code">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.InvalidTwoFactorCode">
+                <StoryDriver @key="@("two-factor-invalid-code")" Mode="StoryDriverMode.FillAndSubmit" Email="000000">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <TwoFactorForm Challenge="story" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
     <Story Name="Locked Out">
         <Template>
-            <Lockout @attributes="context.Args" />
+            <ScenarioScope Value="AuthenticationScenario.LockedOut">
+                <StoryDriver @key="@("two-factor-locked-out")" Mode="StoryDriverMode.FillAndSubmit" Email="000000">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <TwoFactorForm Challenge="story" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Expired Challenge">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <TwoFactorForm />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Lockout Page">
+        <Template>
+            <Lockout />
         </Template>
     </Story>
 </Stories>

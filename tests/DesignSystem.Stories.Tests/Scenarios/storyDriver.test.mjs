@@ -85,7 +85,9 @@ test("driveClick clicks the story's button and resolves only after the observer 
 	const root = {
 		observer: undefined,
 		querySelector(selector) {
-			assert.equal(selector, "button");
+			// FluentButton renders a <fluent-button> host element with no light-DOM <button>, so the
+			// selector must name both or a Fluent confirm page (Confirm Email) is never clicked.
+			assert.equal(selector, "button, fluent-button");
 			return button;
 		}
 	};

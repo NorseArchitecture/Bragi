@@ -1,0 +1,26 @@
+@attribute [Stories("Authentication/Confirm Email Change")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="ConfirmEmailChangePanel">
+    @* Click-to-confirm, never on load. The email (and with it the username) changes on success, so the
+       panel begins a session transition the catalog suppresses and records. That confirmed state renders
+       identically to "Confirm" -- and a ClickOnly driver that sees no DOM change fails the story -- so,
+       like Logout's, it is asserted in DrivenStoryNavigationTests rather than staged as a story. *@
+    <Story Name="Confirm">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <ConfirmEmailChangePanel UserId="story" Email="designer@example.com" Code="story" @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Failed">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.EmailConfirmationFailed">
+                <StoryDriver @key="@("confirm-email-change-failed")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(GateLayout)">
+                        <ConfirmEmailChangePanel UserId="story" Email="designer@example.com" Code="story" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

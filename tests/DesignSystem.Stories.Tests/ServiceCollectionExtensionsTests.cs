@@ -37,6 +37,19 @@ public sealed class ServiceCollectionExtensionsTests
 	}
 
 	[Fact]
+	void Registers_every_train_one_validator()
+	{
+		using var provider = Build();
+		provider.GetRequiredService<IValidator<TwoFactorSignInRequest>>().ShouldBeOfType<TwoFactorSignInRequestValidator>();
+		provider.GetRequiredService<IValidator<RecoveryCodeSignInRequest>>().ShouldBeOfType<RecoveryCodeSignInRequestValidator>();
+		provider.GetRequiredService<IValidator<ForgotPasswordRequest>>().ShouldBeOfType<ForgotPasswordRequestValidator>();
+		provider.GetRequiredService<IValidator<ResetPasswordRequest>>().ShouldBeOfType<ResetPasswordRequestValidator>();
+		provider.GetRequiredService<IValidator<ConfirmEmailRequest>>().ShouldBeOfType<ConfirmEmailRequestValidator>();
+		provider.GetRequiredService<IValidator<ConfirmEmailChangeRequest>>().ShouldBeOfType<ConfirmEmailChangeRequestValidator>();
+		provider.GetRequiredService<IValidator<ResendEmailConfirmationRequest>>().ShouldBeOfType<ResendEmailConfirmationRequestValidator>();
+	}
+
+	[Fact]
 	void Registers_the_fake_as_the_same_instance_within_one_scope()
 	{
 		using var provider = Build();
