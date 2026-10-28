@@ -20,7 +20,7 @@ namespace Norse.DesignSystem.Stories.Tests;
 ///     suppressed transition instead of navigating; these tests are where pin loss stays loud. See
 ///     KNOWN-ISSUES.md.
 /// </summary>
-public sealed class DrivenStoryNavigationTests : BunitContext
+public sealed class DrivenStoryNavigationTests : InteractiveBunitContext
 {
 	public DrivenStoryNavigationTests()
 	{
