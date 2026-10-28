@@ -1,5 +1,7 @@
 using AngleSharp.Dom;
 using Bunit;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using Norse.DesignSystem.Stories.Scenarios;
 
@@ -118,9 +120,15 @@ public sealed class StoryDriverTests : BunitContext
 			.Message.ShouldBe("StoryDriver found no form to drive.");
 	}
 
+	// A rejected drive is the story's state, not the circuit's end: the marker reads "failed" and the
+	// renderer sees no unhandled exception, so one stalled story never tears the canvas down. The reason is
+	// kept, not swallowed: the marker carries the message and the rejection is logged at Warning, so a broken
+	// play function stays distinguishable from a settled one.
 	[Fact]
-	async Task A_driver_settlement_failure_surfaces_the_javascript_exception()
+	void A_rejected_drive_marks_the_driver_failed_without_throwing()
 	{
+		RecordingLogger<StoryDriver> logger = new();
+		Services.AddSingleton<ILogger<StoryDriver>>(logger);
 		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
 		var drive = module.Setup<bool>("drive", _ => true);
 		var component = Render<StoryDriver>(parameters =>
@@ -133,10 +141,47 @@ public sealed class StoryDriverTests : BunitContext
 			"designer@example.com",
 			"aaaaaaaa");
 
-		drive.SetException(new JSException("StoryDriver observed no settled post-submit DOM activity."));
-		(await Renderer.UnhandledException)
-			.ShouldBeOfType<JSException>()
-			.Message.ShouldContain("no settled post-submit DOM activity");
+		JSException rejection = new("StoryDriver observed no settled post-submit DOM activity.");
+		drive.SetException(rejection);
+		component.WaitForAssertion(() =>
+			component.Find("[data-norse-story-driver-state]")
+				.GetAttribute("data-norse-story-driver-state").ShouldBe("failed"));
+		Renderer.UnhandledException.IsCompleted.ShouldBeFalse();
+		component.Find("[data-norse-story-driver-state]").GetAttribute("data-failure-reason")
+			.ShouldBe("StoryDriver observed no settled post-submit DOM activity.");
+		var entry = logger.Entries.ShouldHaveSingleItem();
+		entry.Level.ShouldBe(LogLevel.Warning);
+		entry.Exception.ShouldBeSameAs(rejection);
+	}
+
+	[Fact]
+	void A_driven_story_carries_no_failure_reason()
+	{
+		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
+		module.Setup<bool>("drive", _ => true).SetResult(true);
+		var component = Render<StoryDriver>(parameters =>
+			parameters.Add(p => p.Mode, StoryDriverMode.SubmitOnly));
+
+		component.WaitForAssertion(() =>
+			component.Find("[data-norse-story-driver-state]")
+				.GetAttribute("data-norse-story-driver-state").ShouldBe("complete"));
+		component.Find("[data-norse-story-driver-state]").HasAttribute("data-failure-reason").ShouldBeFalse();
+	}
+
+	sealed class RecordingLogger<T> : ILogger<T>
+	{
+		public List<(LogLevel Level, Exception? Exception)> Entries { get; } = [];
+
+		public IDisposable? BeginScope<TState>(TState state)
+			where TState : notnull =>
+			null;
+
+		public bool IsEnabled(LogLevel logLevel) =>
+			true;
+
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+			Func<TState, Exception?, string> formatter) =>
+			Entries.Add((logLevel, exception));
 	}
 
 	[Fact]

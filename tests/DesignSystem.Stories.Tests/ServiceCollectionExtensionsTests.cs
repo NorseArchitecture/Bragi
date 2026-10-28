@@ -11,9 +11,11 @@ using Norse.AuthN.Services;
 using Norse.DesignSystem.Stories.Account;
 using Norse.DesignSystem.Stories.Authentication;
 using Norse.DesignSystem.Stories.Identity;
+using Norse.DesignSystem.Stories.Passkeys;
 using Norse.DesignSystem.Stories.Scenarios;
 using Norse.DesignSystem.Stories.Session;
 using Norse.DesignSystem.Stories.Shell;
+using Norse.DesignSystem.Stories.TwoFactor;
 using Norse.Reference;
 using Norse.Reference.Components;
 
@@ -66,6 +68,21 @@ public sealed class ServiceCollectionExtensionsTests
 		using var scope = provider.CreateScope();
 		scope.ServiceProvider.GetRequiredService<IAuthenticationService>()
 			.ShouldBeSameAs(scope.ServiceProvider.GetRequiredService<IAuthenticationService>());
+	}
+
+	// Login and LoginWithPasskey render SignInMethodLinks, so every sign-in story resolves the links fake under the
+	// authentication family's own ambient scenario.
+	[Fact]
+	void Registers_the_sign_in_methods_fake_per_scope()
+	{
+		using var provider = Build();
+		using var scopeA = provider.CreateScope();
+		using var scopeB = provider.CreateScope();
+		var a = scopeA.ServiceProvider;
+
+		a.GetRequiredService<ISignInMethodsService>().ShouldBeOfType<FakeSignInMethodsService>()
+			.ShouldBeSameAs(a.GetRequiredService<ISignInMethodsService>());
+		a.GetRequiredService<ISignInMethodsService>().ShouldNotBeSameAs(scopeB.ServiceProvider.GetRequiredService<ISignInMethodsService>());
 	}
 
 	[Fact]
@@ -143,6 +160,35 @@ public sealed class ServiceCollectionExtensionsTests
 		provider.GetRequiredService<IValidator<ChangeEmailRequest>>().ShouldBeOfType<ChangeEmailRequestValidator>();
 		provider.GetRequiredService<IValidator<RemoveExternalLoginRequest>>().ShouldBeOfType<RemoveExternalLoginRequestValidator>();
 		provider.GetRequiredService<IValidator<DeletePersonalDataRequest>>().ShouldBeOfType<DeletePersonalDataRequestValidator>();
+	}
+
+	[Fact]
+	void Registers_every_train_three_validator()
+	{
+		using var provider = Build();
+		provider.GetRequiredService<IValidator<EnableAuthenticatorRequest>>().ShouldBeOfType<EnableAuthenticatorRequestValidator>();
+		provider.GetRequiredService<IValidator<RevealRecoveryCodesRequest>>().ShouldBeOfType<RevealRecoveryCodesRequestValidator>();
+		provider.GetRequiredService<IValidator<GetPasskeyRequest>>().ShouldBeOfType<GetPasskeyRequestValidator>();
+		provider.GetRequiredService<IValidator<AddPasskeyRequest>>().ShouldBeOfType<AddPasskeyRequestValidator>();
+		provider.GetRequiredService<IValidator<RenamePasskeyRequest>>().ShouldBeOfType<RenamePasskeyRequestValidator>();
+		provider.GetRequiredService<IValidator<RemovePasskeyRequest>>().ShouldBeOfType<RemovePasskeyRequestValidator>();
+		provider.GetRequiredService<IValidator<PasskeySignInRequest>>().ShouldBeOfType<PasskeySignInRequestValidator>();
+	}
+
+	// The two-factor and passkey pages are account-tier, so both fakes ride the account family's ambient scenario.
+	[Fact]
+	void Registers_the_two_factor_and_passkey_fakes_per_scope()
+	{
+		using var provider = Build();
+		using var scopeA = provider.CreateScope();
+		using var scopeB = provider.CreateScope();
+		var a = scopeA.ServiceProvider;
+		var b = scopeB.ServiceProvider;
+
+		a.GetRequiredService<ITwoFactorService>().ShouldBeOfType<FakeTwoFactorService>().ShouldBeSameAs(a.GetRequiredService<ITwoFactorService>());
+		a.GetRequiredService<ITwoFactorService>().ShouldNotBeSameAs(b.GetRequiredService<ITwoFactorService>());
+		a.GetRequiredService<IPasskeyService>().ShouldBeOfType<FakePasskeyService>().ShouldBeSameAs(a.GetRequiredService<IPasskeyService>());
+		a.GetRequiredService<IPasskeyService>().ShouldNotBeSameAs(b.GetRequiredService<IPasskeyService>());
 	}
 
 	[Fact]

@@ -1,6 +1,8 @@
 @implements IAsyncDisposable
+@using Microsoft.Extensions.Logging
 @inject IJSRuntime JS
-<div @ref="_root" style="display: contents;" data-norse-story-driver-state="@_state">
+@inject ILogger<StoryDriver> Logger
+<div @ref="_root" style="display: contents;" data-norse-story-driver-state="@_state" data-failure-reason="@_failureReason">
 	@ChildContent
 </div>
 
@@ -8,6 +10,12 @@
 	IJSObjectReference? _module;
 	ElementReference _root;
 	string _state = "pending";
+
+	/// <summary>The rejected play function's message, rendered beside a "failed" state; null (no attribute) otherwise.</summary>
+	string? _failureReason;
+
+	static readonly Action<ILogger, Exception?> _driveRejected = LoggerMessage.Define(
+		LogLevel.Warning, new EventId(1, "StoryDriverRejected"), "StoryDriver's play function rejected; the story is marked failed.");
 
 	/// <summary>How to drive the wrapped form. Required — <see cref="StoryDriverMode.Unspecified" /> throws.</summary>
 	[Parameter, EditorRequired]
@@ -61,6 +69,16 @@
 		catch (JSDisconnectedException)
 		{
 			// Canvas iframe already tore the circuit down — nothing left to drive.
+		}
+		catch (JSException exception)
+		{
+			// The play function rejected -- a submit whose result never settled, but equally a failed import or a
+			// bug in storyDriver.js: the story's state, not the circuit's end. The marker reads "failed" with the
+			// reason beside it, the rejection is logged, and the canvas keeps running.
+			_driveRejected(Logger, exception);
+			_failureReason = exception.Message;
+			_state = "failed";
+			StateHasChanged();
 		}
 	}
 

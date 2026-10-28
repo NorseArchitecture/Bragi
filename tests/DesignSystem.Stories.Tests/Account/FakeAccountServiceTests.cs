@@ -99,6 +99,12 @@ public sealed class FakeAccountServiceTests
 		(await StatusUnder(AccountScenario.NoPasskeys))
 			.ShouldBe(await StatusUnder(AccountScenario.Success) with { PasskeyCount = 0 });
 
+	// The forget-this-browser button renders only for a remembered machine.
+	[Fact]
+	async Task GetAccountStatus_under_MachineRemembered_remembers_the_machine() =>
+		(await StatusUnder(AccountScenario.MachineRemembered))
+			.ShouldBe(await StatusUnder(AccountScenario.Success) with { IsMachineRemembered = true });
+
 	// Reads must succeed for a write story to render its form.
 	[Theory]
 	[InlineData(AccountScenario.IncorrectPassword)]
@@ -142,8 +148,9 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.IncorrectPassword)]
 	[InlineData(AccountScenario.PasswordPolicy)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task GetExternalLogins_under_any_other_scenario_answers_the_Success_fixture(AccountScenario scenario) =>
-		(await LoginsUnder(scenario)).ShouldBeSameAs(await LoginsUnder(AccountScenario.Success));
+		(await LoginsUnder(scenario)).ShouldBeEquivalentTo(await LoginsUnder(AccountScenario.Success));
 
 	[Fact]
 	async Task GetExternalLogins_under_Fault_carries_the_fixed_catalog_correlation_id() =>
@@ -172,6 +179,7 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.IncorrectPassword)]
 	[InlineData(AccountScenario.PasswordPolicy)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task SetPhoneNumber_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).SetPhoneNumber(AnySetPhoneNumber(), TestContext.Current.CancellationToken));
@@ -210,6 +218,7 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.RecoveryCodesLow)]
 	[InlineData(AccountScenario.NoPasskeys)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task ChangePassword_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).ChangePassword(AnyChangePassword(), TestContext.Current.CancellationToken));
@@ -245,6 +254,7 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.NoPasskeys)]
 	[InlineData(AccountScenario.IncorrectPassword)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task SetPassword_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).SetPassword(AnySetPassword(), TestContext.Current.CancellationToken));
@@ -270,6 +280,7 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.IncorrectPassword)]
 	[InlineData(AccountScenario.PasswordPolicy)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task ChangeEmail_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).ChangeEmail(AnyChangeEmail(), TestContext.Current.CancellationToken));
@@ -302,6 +313,7 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.IncorrectPassword)]
 	[InlineData(AccountScenario.PasswordPolicy)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task RemoveExternalLogin_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).RemoveExternalLogin(AnyRemoveExternalLogin(), TestContext.Current.CancellationToken));
@@ -342,7 +354,39 @@ public sealed class FakeAccountServiceTests
 	[InlineData(AccountScenario.NoPasskeys)]
 	[InlineData(AccountScenario.PasswordPolicy)]
 	[InlineData(AccountScenario.InvalidVerificationCode)]
+	[InlineData(AccountScenario.MachineRemembered)]
 	async Task DeletePersonalData_throws_loudly_on_scenarios_that_do_not_apply_to_it(AccountScenario scenario) =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(scenario).DeletePersonalData(AnyDeletePersonalData(), TestContext.Current.CancellationToken));
+
+	// One story host serves every circuit, so no answer may share state with the next: the logins array and the error
+	// arrays are mutable, and every answer is built afresh. (AccountStatusResponse is init-only, so it cannot be.)
+	[Fact]
+	async Task A_caller_mutating_an_answer_never_changes_the_next_one()
+	{
+		var cancellation = TestContext.Current.CancellationToken;
+		(await LoginsUnder(AccountScenario.Success)).Logins[0] = new() { LoginProvider = "mutated", ProviderKey = "mutated", DisplayName = "mutated" };
+		ProblemOf(await CreateFake(AccountScenario.IncorrectPassword).ChangePassword(AnyChangePassword(), cancellation))
+			.Errors[nameof(ChangePasswordRequest.OldPassword)][0] = "mutated";
+		ProblemOf(await CreateFake(AccountScenario.PasswordPolicy).SetPassword(AnySetPassword(), cancellation))
+			.Errors[nameof(SetPasswordRequest.NewPassword)][0] = "mutated";
+		ProblemOf(await CreateFake(AccountScenario.ExternalOnly).RemoveExternalLogin(AnyRemoveExternalLogin(), cancellation))
+			.Errors["LastSignInMethod"][0] = "mutated";
+		ProblemOf(await CreateFake(AccountScenario.IncorrectPassword).DeletePersonalData(AnyDeletePersonalData(), cancellation))
+			.Errors[string.Empty][0] = "mutated";
+		ProblemOf(await CreateFake(AccountScenario.Fault).DeletePersonalData(AnyDeletePersonalData(), cancellation))
+			.Errors[string.Empty][0] = "mutated";
+
+		(await LoginsUnder(AccountScenario.Success)).Logins[0].LoginProvider.ShouldBe("Google");
+		ProblemOf(await CreateFake(AccountScenario.IncorrectPassword).ChangePassword(AnyChangePassword(), cancellation))
+			.Errors[nameof(ChangePasswordRequest.OldPassword)].ShouldBe(["Incorrect password."]);
+		ProblemOf(await CreateFake(AccountScenario.PasswordPolicy).SetPassword(AnySetPassword(), cancellation))
+			.Errors[nameof(SetPasswordRequest.NewPassword)].ShouldBe(["Passwords must have at least one digit ('0'-'9')."]);
+		ProblemOf(await CreateFake(AccountScenario.ExternalOnly).RemoveExternalLogin(AnyRemoveExternalLogin(), cancellation))
+			.Errors["LastSignInMethod"].ShouldBe(["This is the only way to sign in to your account."]);
+		ProblemOf(await CreateFake(AccountScenario.IncorrectPassword).DeletePersonalData(AnyDeletePersonalData(), cancellation))
+			.Errors[string.Empty].ShouldBe(["Incorrect password."]);
+		ProblemOf(await CreateFake(AccountScenario.Fault).DeletePersonalData(AnyDeletePersonalData(), cancellation))
+			.Errors[string.Empty].ShouldBe(["Your account could not be fully deleted. The failure has been logged for an administrator to finish."]);
+	}
 }

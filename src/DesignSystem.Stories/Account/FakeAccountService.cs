@@ -9,9 +9,10 @@ namespace Norse.DesignSystem.Stories.Account;
 ///     Catalog-only stand-in for <see cref="IAccountService" /> — never calls Himinbjörg, never touches
 ///     gRPC. A stateless switch over the ambient <see cref="AccountScenario" />, the
 ///     <see cref="FakeAuthenticationService" /> shape: behavior is selected by the story (via
-///     <c>ScenarioScope</c>), never accumulated. The two reads serve shared static seed fixtures, which no
-///     component mutates, and answer every non-<see cref="AccountScenario.Fault" /> scenario (a write
-///     story must still load its form);
+///     <c>ScenarioScope</c>), never accumulated. The wire records' arrays and the error dictionaries are mutable
+///     and one story host serves every circuit, so every answer is built afresh and shares nothing (the init-only
+///     status records alone are shared). The two reads answer every non-<see cref="AccountScenario.Fault" />
+///     scenario (a write story must still load its form);
 ///     the writes mirror the real account handlers verbatim (<c>Identity.Web.Server/Account/*Handler.cs</c>,
 ///     spec §7 "Stories (Bragi)" of
 ///     <c>../Glitnir/docs/Himinbjorg/specs/2026-10-26-identity-account-lifecycle-over-grpc-design.md</c>),
@@ -41,41 +42,43 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 
 	static readonly AccountStatusResponse _noPasskeysStatus = _status with { PasskeyCount = 0 };
 
-	static readonly ExternalLoginsResponse _logins = new()
-	{
-		Logins = [new() { LoginProvider = "Google", ProviderKey = "story-google", DisplayName = "Google" }],
-		AvailableProviders = [new() { Name = "Microsoft", DisplayName = "Microsoft Account" }],
-		CanRemove = true
-	};
+	static readonly AccountStatusResponse _machineRememberedStatus = _status with { IsMachineRemembered = true };
 
-	static readonly ExternalLoginsResponse _externalOnlyLogins = _logins with { CanRemove = false };
+	static ExternalLoginsResponse Logins(bool canRemove = true) =>
+		new()
+		{
+			Logins = [new() { LoginProvider = "Google", ProviderKey = "story-google", DisplayName = "Google" }],
+			AvailableProviders = [new() { Name = "Microsoft", DisplayName = "Microsoft Account" }],
+			CanRemove = canRemove
+		};
 
 	// IdentityErrorFields.ForPasswordChange keys PasswordMismatch to OldPassword and every password rule to
 	// NewPassword — for SetPassword too, whose request names its one field the same.
-	static readonly Dictionary<string, string[]> _incorrectOldPassword =
+	static Dictionary<string, string[]> IncorrectOldPassword() =>
 		new() { [nameof(ChangePasswordRequest.OldPassword)] = ["Incorrect password."] };
 
-	static readonly Dictionary<string, string[]> _passwordPolicy =
+	static Dictionary<string, string[]> PasswordPolicy() =>
 		new() { [nameof(ChangePasswordRequest.NewPassword)] = ["Passwords must have at least one digit ('0'-'9')."] };
 
 	// The store's refusal, keyed by its Identity error code (NorseIdentityErrorCodes.LastSignInMethod) the way
 	// IdentityOutcomeMap keys every IdentityResult failure; RemoveExternalLoginHandler passes it through unchanged.
-	static readonly Dictionary<string, string[]> _lastSignInMethod =
+	static Dictionary<string, string[]> LastSignInMethod() =>
 		new() { ["LastSignInMethod"] = ["This is the only way to sign in to your account."] };
 
-	static readonly Failed _incorrectPassword =
+	static Failed IncorrectPassword() =>
 		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Incorrect password."));
 
 	// DeletePersonalDataHandler's one shred-failure line, under the catalog correlation id.
-	static readonly Failed _shredFailed = new(new Problem
-	{
-		Category = ErrorCategory.Fault,
-		Errors = new Dictionary<string, string[]>
+	static Failed ShredFailed() =>
+		new(new Problem
 		{
-			[string.Empty] = ["Your account could not be fully deleted. The failure has been logged for an administrator to finish."]
-		},
-		CorrelationId = FakeAuthenticationService.CatalogCorrelationId
-	});
+			Category = ErrorCategory.Fault,
+			Errors = new Dictionary<string, string[]>
+			{
+				[string.Empty] = ["Your account could not be fully deleted. The failure has been logged for an administrator to finish."]
+			},
+			CorrelationId = FakeAuthenticationService.CatalogCorrelationId
+		});
 
 	/// <inheritdoc />
 	public Task<Outcome<AccountStatusResponse>> GetAccountStatus(CancellationToken cancellationToken = default) =>
@@ -87,6 +90,7 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 			AccountScenario.TwoFactorDisabled => Outcome<AccountStatusResponse>.Ok(_twoFactorDisabledStatus),
 			AccountScenario.RecoveryCodesLow => Outcome<AccountStatusResponse>.Ok(_recoveryCodesLowStatus),
 			AccountScenario.NoPasskeys => Outcome<AccountStatusResponse>.Ok(_noPasskeysStatus),
+			AccountScenario.MachineRemembered => Outcome<AccountStatusResponse>.Ok(_machineRememberedStatus),
 			AccountScenario.Fault =>
 				Outcome<AccountStatusResponse>.Err(ErrorCategory.Fault, correlationId: FakeAuthenticationService.CatalogCorrelationId),
 			_ => Outcome<AccountStatusResponse>.Ok(_status),
@@ -110,9 +114,9 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 			AccountScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Manage/ChangePassword?status=password-changed" }),
 			AccountScenario.IncorrectPassword =>
-				Outcome<NavigationResult>.Err(ErrorCategory.InvalidCredentials, _incorrectOldPassword),
+				Outcome<NavigationResult>.Err(ErrorCategory.InvalidCredentials, IncorrectOldPassword()),
 			AccountScenario.PasswordPolicy =>
-				Outcome<NavigationResult>.Err(ErrorCategory.Validation, _passwordPolicy),
+				Outcome<NavigationResult>.Err(ErrorCategory.Validation, PasswordPolicy()),
 			AccountScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: FakeAuthenticationService.CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to ChangePassword."),
@@ -126,7 +130,7 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 			AccountScenario.Success or AccountScenario.ExternalOnly =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Manage/ChangePassword?status=password-set" }),
 			AccountScenario.PasswordPolicy =>
-				Outcome<NavigationResult>.Err(ErrorCategory.Validation, _passwordPolicy),
+				Outcome<NavigationResult>.Err(ErrorCategory.Validation, PasswordPolicy()),
 			AccountScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: FakeAuthenticationService.CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to SetPassword."),
@@ -149,10 +153,10 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 		{
 			AccountScenario.Unspecified =>
 				throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to GetExternalLogins."),
-			AccountScenario.ExternalOnly => Outcome<ExternalLoginsResponse>.Ok(_externalOnlyLogins),
+			AccountScenario.ExternalOnly => Outcome<ExternalLoginsResponse>.Ok(Logins(canRemove: false)),
 			AccountScenario.Fault =>
 				Outcome<ExternalLoginsResponse>.Err(ErrorCategory.Fault, correlationId: FakeAuthenticationService.CatalogCorrelationId),
-			_ => Outcome<ExternalLoginsResponse>.Ok(_logins),
+			_ => Outcome<ExternalLoginsResponse>.Ok(Logins()),
 		});
 
 	/// <inheritdoc />
@@ -162,7 +166,7 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 			AccountScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Manage/ExternalLogins?status=external-login-removed" }),
 			AccountScenario.ExternalOnly =>
-				Outcome<NavigationResult>.Err(ErrorCategory.Conflict, _lastSignInMethod),
+				Outcome<NavigationResult>.Err(ErrorCategory.Conflict, LastSignInMethod()),
 			AccountScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: FakeAuthenticationService.CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to RemoveExternalLogin."),
@@ -176,9 +180,9 @@ sealed class FakeAccountService(Scenario<AccountScenario> scenario) : IAccountSe
 			AccountScenario.Success or AccountScenario.ExternalOnly =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
 			AccountScenario.IncorrectPassword =>
-				new Outcome<NavigationResult>(_incorrectPassword),
+				new Outcome<NavigationResult>(IncorrectPassword()),
 			AccountScenario.Fault =>
-				new Outcome<NavigationResult>(_shredFailed),
+				new Outcome<NavigationResult>(ShredFailed()),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to DeletePersonalData."),
 		});
 }

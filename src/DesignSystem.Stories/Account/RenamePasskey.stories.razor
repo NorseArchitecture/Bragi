@@ -1,0 +1,28 @@
+@attribute [Stories("Account/Rename Passkey")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="RenamePasskey">
+    @* The page loads "Work laptop" through its server-shaped rename id and opens the form on the stored name. A
+       rename touches no sign-in, so success is an ordinary soft navigation to the passkey list -- the Forgot
+       Password shape, with the same live-iframe caveat (KNOWN-ISSUES.md) -- so no driven success story is staged;
+       DrivenStoryNavigationTests holds that navigation. The StoryDriver fills every text input with its Email
+       value, and the name is the form's only text input -- so Email carries the name. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <RenamePasskey Id="cred-one" @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* A faulted load offers no form, so the submit fault drives the form itself, opened on the stored name. *@
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("rename-passkey-fault")" Mode="StoryDriverMode.FillAndSubmit" Email="Home desktop">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <RenamePasskeyForm CredentialId="cred-one" CurrentName="Work laptop" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

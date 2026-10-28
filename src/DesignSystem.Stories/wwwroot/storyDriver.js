@@ -7,7 +7,10 @@ const minimumSettleMs = 500;
 const quietMs = 250;
 const settleTimeoutMs = 5000;
 
-function waitForPostSubmitSettle(root, requirePostSubmitTurn) {
+// A submit owes the canvas its result, so it settles only on observed DOM activity and rejects after
+// settleTimeoutMs without any. A click need not: a suppressed transition or a file download leaves the
+// canvas untouched, so with requireMutation false the minimum and quiet windows alone settle it.
+function waitForPostSubmitSettle(root, requirePostSubmitTurn, requireMutation = true) {
 	let barrierPassed = !requirePostSubmitTurn;
 	let observed = false;
 	let quietTimer;
@@ -25,7 +28,7 @@ function waitForPostSubmitSettle(root, requirePostSubmitTurn) {
 		const now = performance.now();
 		const minimumRemaining = minimumSettleMs - (now - submittedAt);
 		const quietRemaining = quietMs - (now - lastMutationAt);
-		if (!observed || minimumRemaining > 0 || quietRemaining > 0) {
+		if ((requireMutation && !observed) || minimumRemaining > 0 || quietRemaining > 0) {
 			quietTimer = setTimeout(finish, Math.max(minimumRemaining, quietRemaining, quietMs));
 			return;
 		}
@@ -63,6 +66,8 @@ function waitForPostSubmitSettle(root, requirePostSubmitTurn) {
 					observer.takeRecords();
 					barrierPassed = true;
 				});
+			if (!requireMutation)
+				quietTimer = setTimeout(finish, minimumSettleMs);
 		}
 	};
 }
@@ -129,7 +134,7 @@ export async function driveClick(root) {
 		// handler sits on that host, so clicking it drives the confirm the same as a native button.
 		const button = root.querySelector("button, fluent-button");
 		if (button) {
-			const settled = waitForPostSubmitSettle(root, true);
+			const settled = waitForPostSubmitSettle(root, true, false);
 			button.click();
 			settled.markSubmitted();
 			await settled.completion;

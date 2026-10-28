@@ -2,9 +2,10 @@ namespace Norse.DesignSystem.Stories.Account;
 
 /// <summary>
 ///     The states a story can pin <see cref="FakeAccountService" /> into — mirrors what the real account
-///     handlers actually emit (spec §7 "Stories (Bragi)"), not the full <c>ErrorCategory</c> enum. The
-///     whole §7 list is declared now so Train 3 renumbers nothing; a member that applies to no Train 2
-///     method (<see cref="InvalidVerificationCode" />) throws "does not apply" like every foreign scenario.
+///     handlers actually emit (spec §7 "Stories (Bragi)"), not the full <c>ErrorCategory</c> enum. The family
+///     spans the whole account tier: <see cref="FakeAccountService" />, <c>FakeTwoFactorService</c> and
+///     <c>FakePasskeyService</c> all read it, and a member that applies to no method of a fake throws "does not
+///     apply" there like every foreign scenario.
 /// </summary>
 enum AccountScenario
 {
@@ -32,9 +33,12 @@ enum AccountScenario
 	/// <summary>A new password rejected by password policy.</summary>
 	PasswordPolicy = 7,
 
-	/// <summary>An authenticator verification code rejected — Train 3's two-factor setup; applies to no Train 2 method.</summary>
+	/// <summary>An authenticator verification code rejected — Train 3's two-factor setup (<c>EnableAuthenticator</c>).</summary>
 	InvalidVerificationCode = 8,
 
 	/// <summary>An unmapped failure with the fixed catalog correlation id.</summary>
-	Fault = 9
+	Fault = 9,
+
+	/// <summary>The calling browser is remembered for two-factor sign-in, so the page offers to forget it.</summary>
+	MachineRemembered = 10
 }

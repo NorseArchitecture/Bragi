@@ -43,5 +43,8 @@ enum AuthenticationScenario
 	InvalidResetToken = 11,
 
 	/// <summary>Email confirmation (or email-change confirmation) rejected because the code is invalid.</summary>
-	EmailConfirmationFailed = 12
+	EmailConfirmationFailed = 12,
+
+	/// <summary>The sign-in pages offer one external provider ("Example provider") beside the password and passkey links.</summary>
+	ExternalProviders = 13
 }

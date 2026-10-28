@@ -56,6 +56,18 @@
             </ScenarioScope>
         </Template>
     </Story>
+    @* The external providers the server offers render as plain top-level links to each provider's start
+       endpoint, which only a full page load reaches -- so the link is the state, and nothing is driven. Every
+       Login story renders the passkey link from the same fake. *@
+    <Story Name="External Providers">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.ExternalProviders">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <Login @key="@("login-external-providers")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
     @* Success with a second factor demanded: Login begins a session transition to the two-factor
        challenge hop, which the catalog suppresses and records, so the canvas keeps the submitted form.
        The challenge itself is staged under Authentication/Two-Factor. *@

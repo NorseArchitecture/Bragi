@@ -1,0 +1,28 @@
+@attribute [Stories("Account/Recovery Codes Handoff")]
+@using Microsoft.AspNetCore.Components
+@using Norse.AuthN.Components.FluentUI.Shared
+<Stories TComponent="RecoveryCodesHandoff">
+    @* The page redeems a one-shot handoff it reads from the query, then strips the query by navigating to its
+       bare route. The canvas has no handoff to give it and must not navigate, so Default is the bare route --
+       what the page shows after a reload -- and "Revealed" is what a successful reveal renders: the shared panel
+       with the fake's ten codes under the verified status. DrivenStoryNavigationTests holds the page's own
+       reveal and its fault over the fake's handoff hop. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <RecoveryCodesHandoff @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Revealed">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <ShowRecoveryCodes StatusMessage="@ManageStatus.Text(ManageStatus.AuthenticatorVerified)" RecoveryCodes="@(
+                    [
+                        "2KQ8M-7XRTN", "4WJ3P-9CHVL", "6DNB5-3GFQZ", "8TYV2-5MKWR", "AXC7H-2PLJD",
+                        "CRF4N-8VZBT", "EHQ9W-6DMXK", "GLT3B-4RNYC", "JPZ6K-7WHFV", "LVD2X-9QTMB",
+                    ])" />
+            </LayoutView>
+        </Template>
+    </Story>
+</Stories>

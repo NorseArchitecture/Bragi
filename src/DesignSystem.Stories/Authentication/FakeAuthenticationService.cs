@@ -10,7 +10,8 @@ namespace Norse.DesignSystem.Stories.Authentication;
 ///     Catalog-only stand-in for <see cref="IAuthenticationService" /> — never calls Himinbjörg, never
 ///     touches gRPC. A stateless switch over the ambient <see cref="AuthenticationScenario" />:
 ///     behavior is selected by the story (via <c>ScenarioScope</c>), never accumulated — the fake holds
-///     no mutable state of its own. Canonical outcomes mirror the real producers verbatim
+///     no mutable state of its own, and every answer is built afresh, since the error dictionaries are mutable
+///     and one story host serves every circuit. Canonical outcomes mirror the real producers verbatim
 ///     (spec §1.3: <c>LoginHandler</c>, <c>RegisterHandler</c>, <c>ExceptionTranslationBehavior</c>; the
 ///     account-lifecycle handlers; scenario-driven fakes defined in §7 "Stories (Bragi)" of
 ///     <c>../Glitnir/docs/Himinbjorg/specs/2026-10-26-identity-account-lifecycle-over-grpc-design.md</c>);
@@ -34,36 +35,27 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 	/// </summary>
 	internal static readonly Guid CatalogCorrelationId = new("0badc0de-0bad-c0de-0bad-c0de0badc0de");
 
-	static readonly Failed _invalidCredentials =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid email or password."));
-
-	static readonly Failed _invalidAuthenticatorCode =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid authenticator code."));
-
-	static readonly Failed _invalidRecoveryCode =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "Invalid recovery code entered."));
-
-	static readonly Failed _invalidResetLink =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "The reset link is invalid or has expired."));
-
-	static readonly Failed _invalidConfirmationLink =
-		new(Problem.ModelError(ErrorCategory.InvalidCredentials, "The confirmation link is invalid or has expired."));
+	// Every sign-in refusal of the stock InvalidCredentials shape, keyed to the model, as the handlers answer it.
+	static Outcome<T> Refuse<T>(string message)
+		where T : notnull =>
+		new(new Failed(Problem.ModelError(ErrorCategory.InvalidCredentials, message)));
 
 	// Shared by every sign-in arm — Himinbjörg's SignInRefusal collapses each lockout to this one text.
-	static readonly Dictionary<string, string[]> _lockedOut =
+	static Dictionary<string, string[]> LockedOut() =>
 		new() { [string.Empty] = ["This account is locked out. Try again later or reset your password."] };
 
 	// Exactly what the proven "aaaaaaaa" fixture yields under the default password policy (RegisterHandlerTests);
 	// Register and ResetPassword both key it to their own Password field, which share the one name.
-	static readonly Dictionary<string, string[]> _passwordPolicy = new()
-	{
-		[nameof(RegisterRequest.Password)] =
-		[
-			"Passwords must have at least one non alphanumeric character.",
-			"Passwords must have at least one digit ('0'-'9').",
-			"Passwords must have at least one uppercase ('A'-'Z').",
-		],
-	};
+	static Dictionary<string, string[]> PasswordPolicy() =>
+		new()
+		{
+			[nameof(RegisterRequest.Password)] =
+			[
+				"Passwords must have at least one non alphanumeric character.",
+				"Passwords must have at least one digit ('0'-'9').",
+				"Passwords must have at least one uppercase ('A'-'Z').",
+			],
+		};
 
 	// Unconditionally "not taken" under every scenario: Blazilla's async EmailExists rule runs during
 	// validation before submit, so any other answer would stop driven Register stories from ever
@@ -76,13 +68,14 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 		{
 			AuthenticationScenario.Success when request.Email is Success<EmailAddress>(var email) &&
 				email.WireValue.Equals(InvalidCredentialsSentinelEmail, StringComparison.OrdinalIgnoreCase) =>
-				new Outcome<NavigationResult>(_invalidCredentials),
-			AuthenticationScenario.Success =>
+				Refuse<NavigationResult>("Invalid email or password."),
+			// ExternalProviders only adds a provider link beside the form; a manual submit there signs in like Success.
+			AuthenticationScenario.Success or AuthenticationScenario.ExternalProviders =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
 			AuthenticationScenario.InvalidCredentials =>
-				new Outcome<NavigationResult>(_invalidCredentials),
+				Refuse<NavigationResult>("Invalid email or password."),
 			AuthenticationScenario.LockedOut =>
-				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, _lockedOut),
+				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, LockedOut()),
 			AuthenticationScenario.NotAllowed =>
 				Outcome<NavigationResult>.Err(ErrorCategory.NotAllowed,
 					new Dictionary<string, string[]> { [string.Empty] = ["Sign-in is not allowed for this account."] }),
@@ -112,7 +105,7 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 				Outcome<NavigationResult>.Err(ErrorCategory.Conflict,
 					new Dictionary<string, string[]> { [nameof(RegisterRequest.Email)] = ["Email 'taken@example.com' is already taken."] }),
 			AuthenticationScenario.RegistrationValidation =>
-				Outcome<NavigationResult>.Err(ErrorCategory.Validation, _passwordPolicy),
+				Outcome<NavigationResult>.Err(ErrorCategory.Validation, PasswordPolicy()),
 			AuthenticationScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to Register."),
@@ -125,9 +118,9 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 			AuthenticationScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
 			AuthenticationScenario.InvalidTwoFactorCode =>
-				new Outcome<NavigationResult>(_invalidAuthenticatorCode),
+				Refuse<NavigationResult>("Invalid authenticator code."),
 			AuthenticationScenario.LockedOut =>
-				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, _lockedOut),
+				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, LockedOut()),
 			AuthenticationScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to TwoFactorSignIn."),
@@ -140,9 +133,9 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 			AuthenticationScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/" }),
 			AuthenticationScenario.InvalidRecoveryCode =>
-				new Outcome<NavigationResult>(_invalidRecoveryCode),
+				Refuse<NavigationResult>("Invalid recovery code entered."),
 			AuthenticationScenario.LockedOut =>
-				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, _lockedOut),
+				Outcome<NavigationResult>.Err(ErrorCategory.LockedOut, LockedOut()),
 			AuthenticationScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to RecoveryCodeSignIn."),
@@ -166,9 +159,9 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 			AuthenticationScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/ResetPasswordConfirmation" }),
 			AuthenticationScenario.InvalidResetToken =>
-				new Outcome<NavigationResult>(_invalidResetLink),
+				Refuse<NavigationResult>("The reset link is invalid or has expired."),
 			AuthenticationScenario.RegistrationValidation =>
-				Outcome<NavigationResult>.Err(ErrorCategory.Validation, _passwordPolicy),
+				Outcome<NavigationResult>.Err(ErrorCategory.Validation, PasswordPolicy()),
 			AuthenticationScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to ResetPassword."),
@@ -181,7 +174,7 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 			AuthenticationScenario.Success =>
 				Outcome<BoolResponse>.Ok(new BoolResponse { Value = true }),
 			AuthenticationScenario.EmailConfirmationFailed =>
-				new Outcome<BoolResponse>(_invalidConfirmationLink),
+				Refuse<BoolResponse>("The confirmation link is invalid or has expired."),
 			AuthenticationScenario.Fault =>
 				Outcome<BoolResponse>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to ConfirmEmail."),
@@ -194,7 +187,7 @@ sealed class FakeAuthenticationService(Scenario<AuthenticationScenario> scenario
 			AuthenticationScenario.Success =>
 				Outcome<NavigationResult>.Ok(new NavigationResult { NextUrl = "/Account/Login" }),
 			AuthenticationScenario.EmailConfirmationFailed =>
-				new Outcome<NavigationResult>(_invalidConfirmationLink),
+				Refuse<NavigationResult>("The confirmation link is invalid or has expired."),
 			AuthenticationScenario.Fault =>
 				Outcome<NavigationResult>.Err(ErrorCategory.Fault, correlationId: CatalogCorrelationId),
 			_ => throw new InvalidOperationException($"Scenario {scenario.Value} does not apply to ConfirmEmailChange."),

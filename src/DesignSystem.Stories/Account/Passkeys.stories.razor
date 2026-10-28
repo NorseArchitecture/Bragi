@@ -1,0 +1,32 @@
+@attribute [Stories("Account/Passkeys")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="Passkeys">
+    @* The page loads the caller's passkeys -- "Work laptop" and an unnamed one, each with the server's rename
+       link -- then asks the browser whether it can run a ceremony. Add and Delete are live: Add runs a real
+       WebAuthn ceremony in the canvas, so no story drives either. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <Passkeys @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="No Passkeys">
+        <Template>
+            <ScenarioScope Value="AccountScenario.NoPasskeys">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <Passkeys @key="@("passkeys-none")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <Passkeys @key="@("passkeys-fault")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

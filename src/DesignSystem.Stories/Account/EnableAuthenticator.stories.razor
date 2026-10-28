@@ -1,0 +1,48 @@
+@attribute [Stories("Account/Enable Authenticator")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="EnableAuthenticator">
+    @* The page loads the authenticator setup (the key in groups of four and the QR image; the catalog's SVG is a
+       placeholder, not a scannable code) and renders VerifyAuthenticatorForm. The StoryDriver fills every text
+       input with its Email value, and the verification code is the form's only text input -- so Email carries
+       the code. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <EnableAuthenticator @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* Enabling rotates the stamp, so success begins a session transition the catalog suppresses and records. The
+       Success account still holds recovery codes, so the hop is the verified status, not the recovery-code
+       handoff; the canvas keeps the submitted form. *@
+    <Story Name="Verified">
+        <Template>
+            <StoryDriver @key="@("enable-authenticator-verified")" Mode="StoryDriverMode.FillAndSubmit" Email="123456">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <EnableAuthenticator @key="@("enable-authenticator-verified")" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Invalid Code">
+        <Template>
+            <ScenarioScope Value="AccountScenario.InvalidVerificationCode">
+                <StoryDriver @key="@("enable-authenticator-invalid-code")" Mode="StoryDriverMode.FillAndSubmit" Email="123456">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <EnableAuthenticator @key="@("enable-authenticator-invalid-code")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    @* A load fault: the setup read fails, so no form is offered and there is nothing to drive. *@
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <EnableAuthenticator @key="@("enable-authenticator-fault")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>
