@@ -79,7 +79,7 @@ a write story still loads its form; each write answers only the scenarios that a
 | Scenario | What renders | Canonical shape |
 |---|---|---|
 | `Success` | Happy path (unwrapped stories) | The catalog subject `designer@example.com` / `+15551234567`; masked, `d***@e***.com` / `***4567`, straight from the PII primitives |
-| `Fault` | Unmapped failure | The catalog correlation reference |
+| `Fault` | Unmapped failure | A load fault: the reading page's own "could not be loaded" line (Profile, Email), with no reference; Personal Data's download does nothing. No story pins it yet |
 
 ## Session scenarios
 
@@ -89,12 +89,14 @@ a write story still loads its form; each write answers only the scenarios that a
 | `Anonymous` | The anonymous-cookie principal | Authenticated, carrying only the anonymous role, which the `Account` policy refuses |
 
 Stories render components directly, so no page's `[Authorize]` is evaluated in the canvas, and no Train 2
-story reads the session; the provider keeps `AuthorizeView` and cascaded-state consumers truthful.
+story reads the session; the provider keeps `AuthorizeView` and cascaded-state consumers truthful. Pinning
+`SessionScenario` through `ScenarioScope` does not refresh the cascaded state, which is read once per circuit:
+a story that needs a session pin must first make the provider notify on the pin.
 
 ### Train 2 surfaces
 
 The account-core surfaces under `Account/` drive these scenarios. The Manage pages render inside
-`ManageLayout`, which nests the catalog's `StoryShellLayout` (a bare `@Body`) in place of the host's chrome.
+`ManageLayout`, which nests the catalog's `StoryShellLayout` (declaring `StoryShell`, a bare `@Body`) in place of the host's chrome.
 
 | Story | Scenario | Driver |
 |---|---|---|
@@ -128,4 +130,5 @@ later password field) into every enabled text input and submits the form after f
 play-function idiom, with zero changes to shipping components. A disabled input is a read-only display, so
 the driver leaves its value alone.
 Click-to-confirm surfaces (Logout, Confirm Email, Confirm Email Change) are driven by `ClickOnly`, which
-clicks the story's first button instead.
+clicks the story's first button instead. `ClickOnly` requires the click to change the page: a click whose
+success is only a suppressed transition or a saved file gets no story, and a bUnit fact holds its state.

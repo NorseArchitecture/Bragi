@@ -501,7 +501,8 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 		story.Markup.ShouldContain("designer@example.com");
 	}
 
-	// Mirrors storyDriver.js: fill every text input the story exposes, in order.
+	// Mirrors storyDriver.js: fill every text input the story exposes, in order. The driver also skips
+	// disabled inputs; callers with a read-only display field target the editable one directly.
 	static void Fill<TComponent>(IRenderedComponent<TComponent> story, params string[] values)
 		where TComponent : Microsoft.AspNetCore.Components.IComponent
 	{
