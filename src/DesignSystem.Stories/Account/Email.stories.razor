@@ -1,0 +1,42 @@
+@attribute [Stories("Account/Email")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="Email">
+    @* Default renders the routable page through ManageLayout: the loader reads the account status, then the
+       caller's email through FakeIdentityService. The server only mails a link to the new address, so
+       "Link Sent" renders in place and navigates nowhere. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <Email @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Unconfirmed">
+        <Template>
+            <ChangeEmailForm Email="designer@example.com" EmailConfirmed="false" />
+        </Template>
+    </Story>
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("email-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <ChangeEmailForm Email="designer@example.com" EmailConfirmed="true" />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Link Sent">
+        <Template>
+            <StoryDriver @key="@("email-link-sent")" Mode="StoryDriverMode.FillAndSubmit" Email="new@example.com">
+                <ChangeEmailForm Email="designer@example.com" EmailConfirmed="true" />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("email-fault")" Mode="StoryDriverMode.FillAndSubmit" Email="new@example.com">
+                    <ChangeEmailForm Email="designer@example.com" EmailConfirmed="true" />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

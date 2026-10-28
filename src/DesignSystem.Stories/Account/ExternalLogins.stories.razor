@@ -1,0 +1,36 @@
+@attribute [Stories("Account/External Logins")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="ExternalLogins">
+    @* The page is its own unit: it loads the linked logins and the providers still available, and removes
+       on click. A removal refreshes the sign-in, so it begins a session transition the catalog suppresses
+       and records -- and the canvas, unchanged, would render identically to Default, so no "Removed" story
+       is staged (the Logout precedent); DrivenStoryNavigationTests is where that state lives. The pinned
+       states key the page so each loads its own scenario's logins. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <ExternalLogins @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* The one login is the account's only way in: the server's last-sign-in-method guard reports it, and
+       the page renders no remove button. *@
+    <Story Name="External Only">
+        <Template>
+            <ScenarioScope Value="AccountScenario.ExternalOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <ExternalLogins @key="@("external-logins-external-only")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <ExternalLogins @key="@("external-logins-fault")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

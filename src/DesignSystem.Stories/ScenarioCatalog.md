@@ -59,6 +59,61 @@ Logout precedent).
 
 `CountryLookup`'s validation-errors state needs no scenario at all — `CountryRequestValidator` blocks an empty submit client-side, the same as Login's.
 
+## Account scenarios
+
+The account reads (status, external logins) answer every scenario but `Fault` with the catalog subject, so
+a write story still loads its form; each write answers only the scenarios that apply to it.
+
+| Scenario | What renders | Canonical shape |
+|---|---|---|
+| `Success` | Happy path (unwrapped stories) | A confirmed account with a password, two-factor on, three recovery codes, two passkeys, Google linked and Microsoft available. Writes: `SetPhoneNumber` → `NextUrl = "/Account/Manage?status=phone-updated"`; `ChangePassword` → `"/Account/Manage/ChangePassword?status=password-changed"`; `SetPassword` → `"/Account/Manage/ChangePassword?status=password-set"`; `RemoveExternalLogin` → `"/Account/Manage/ExternalLogins?status=external-login-removed"`; `DeletePersonalData` → `"/"`; `ChangeEmail` → `Value = true` |
+| `ExternalOnly` | A passwordless account whose one login is Google | No password, `CanRemove = false`: the Set Password form, Delete Personal Data without a password field, External Logins without a remove button. `SetPassword` and `DeletePersonalData` succeed as under `Success`; `RemoveExternalLogin` answers `Conflict` keyed `LastSignInMethod`: "This is the only way to sign in to your account." |
+| `TwoFactorDisabled` / `RecoveryCodesLow` / `NoPasskeys` | Status variants for Train 3's two-factor and passkey pages | Two-factor off with no authenticator and no codes / one code left / no passkeys |
+| `IncorrectPassword` | Change Password and Delete Personal Data wrong current password | "Incorrect password." — on `OldPassword` for Change Password, in the summary for Delete Personal Data |
+| `PasswordPolicy` | Change Password and Set Password policy rejection | `NewPassword`: "Passwords must have at least one digit ('0'-'9')." |
+| `InvalidVerificationCode` | Train 3's authenticator setup | Applies to no Train 2 method |
+| `Fault` | Unmapped failure | The catalog correlation reference on every write; External Logins faults on its load instead, rendering "Your external logins could not be loaded." with no reference. Delete Personal Data's shred failure keeps its own line, "Your account could not be fully deleted. The failure has been logged for an administrator to finish." |
+
+## Identity scenarios
+
+| Scenario | What renders | Canonical shape |
+|---|---|---|
+| `Success` | Happy path (unwrapped stories) | The catalog subject `designer@example.com` / `+15551234567`; masked, `d***@e***.com` / `***4567`, straight from the PII primitives |
+| `Fault` | Unmapped failure | The catalog correlation reference |
+
+## Session scenarios
+
+| Scenario | What renders | Canonical shape |
+|---|---|---|
+| `SignedIn` | The default principal | An authenticated `user`-role account, which passes the `Account` policy |
+| `Anonymous` | The anonymous-cookie principal | Authenticated, carrying only the anonymous role, which the `Account` policy refuses |
+
+Stories render components directly, so no page's `[Authorize]` is evaluated in the canvas, and no Train 2
+story reads the session; the provider keeps `AuthorizeView` and cascaded-state consumers truthful.
+
+### Train 2 surfaces
+
+The account-core surfaces under `Account/` drive these scenarios. The Manage pages render inside
+`ManageLayout`, which nests the catalog's `StoryShellLayout` (a bare `@Body`) in place of the host's chrome.
+
+| Story | Scenario | Driver |
+|---|---|---|
+| Profile → Validation Errors | `Success` | `SubmitOnly`, over a stored number without its country code (`5551234567`) |
+| Profile → Saved / Fault | `Success` / `Fault` | `FillAndSubmit`, `Email = "+15551234567"` (the phone rides the `Email` slot) |
+| Email → Link Sent / Fault | `Success` / `Fault` | `FillAndSubmit`, `Email = "new@example.com"` |
+| Change Password → Changed / Incorrect Password / Password Policy / Fault | `Success` / `IncorrectPassword` / `PasswordPolicy` / `Fault` | `FillAndSubmit` (current `"aaaaaaaa"`, new `"bbbbbbbb"`) |
+| Set Password → Default / Set | `ExternalOnly` | — / `FillAndSubmit` |
+| Set Password → Password Policy / Fault | `PasswordPolicy` / `Fault` | `FillAndSubmit` |
+| External Logins → External Only / Fault | `ExternalOnly` / `Fault` | — (the page's own load; Fault is a load fault, rendering "Your external logins could not be loaded." with no correlation reference) |
+| Delete Personal Data → Passwordless | `ExternalOnly` | — |
+| Delete Personal Data → Deleted / Incorrect Password / Fault | `Success` / `IncorrectPassword` / `Fault` | `FillAndSubmit` |
+
+Every "Validation Errors" story is `SubmitOnly`. Profile, Change Password, Set Password and Delete Personal
+Data succeed by a suppressed session transition, so their success stories keep the submitted form; Email
+succeeds in place. External Logins stages no "Removed" story and Personal Data no "Download" story: a
+suppressed removal and a file download both leave the canvas identical to "Default" (the Logout precedent),
+so `DrivenStoryNavigationTests` is where both states live.
+
 ## The playground sentinel
 
 The `Login → Default` story stays interactive: type **`fail@example.com`** into its Email field
@@ -68,7 +123,9 @@ pinned stories, not magic inputs, are how states are reached in this catalog.
 ## Driven stories
 
 States that only exist after a submit (`Locked Out`, `Invalid Password`, …) are pinned by
-`StoryDriver`, which fills valid-shaped values (password fixture `"aaaaaaaa"`) and submits the form
-after first render — the Storybook play-function idiom, with zero changes to shipping components.
+`StoryDriver`, which fills valid-shaped values (password fixture `"aaaaaaaa"`, and `"bbbbbbbb"` for every
+later password field) into every enabled text input and submits the form after first render — the Storybook
+play-function idiom, with zero changes to shipping components. A disabled input is a read-only display, so
+the driver leaves its value alone.
 Click-to-confirm surfaces (Logout, Confirm Email, Confirm Email Change) are driven by `ClickOnly`, which
 clicks the story's first button instead.

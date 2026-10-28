@@ -29,6 +29,28 @@ public sealed class StoryDriverTests : BunitContext
 	}
 
 	[Fact]
+	void Passes_the_new_password_as_the_fifth_argument()
+	{
+		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
+		var drive = module.Setup<bool>("drive", _ => true);
+		var component = Render<StoryDriver>(parameters =>
+			parameters
+				.Add(p => p.Mode, StoryDriverMode.FillAndSubmit)
+				.Add(p => p.Password, "aaaaaaaa")
+				.Add(p => p.NewPassword, "cccccccc"));
+		AssertDriveArguments(
+			module.Invocations["drive"].Single(),
+			component.Find("[data-norse-story-driver-state]"),
+			true,
+			"designer@example.com",
+			"aaaaaaaa",
+			"cccccccc");
+		var initialRenderCount = component.RenderCount;
+		drive.SetResult(true);
+		component.WaitForState(() => component.RenderCount > initialRenderCount);
+	}
+
+	[Fact]
 	void Submit_only_invokes_the_module_with_fill_false()
 	{
 		var module = JSInterop.SetupModule("./_content/Norse.DesignSystem.Stories/storyDriver.js");
@@ -166,12 +188,14 @@ public sealed class StoryDriverTests : BunitContext
 		IElement expectedWrapper,
 		bool fill,
 		string email,
-		string password)
+		string password,
+		string newPassword = "bbbbbbbb")
 	{
-		invocation.Arguments.Count.ShouldBe(4);
+		invocation.Arguments.Count.ShouldBe(5);
 		invocation.Arguments[0].ShouldBeElementReferenceTo(expectedWrapper);
 		invocation.Arguments[1].ShouldBe(fill);
 		invocation.Arguments[2].ShouldBe(email);
 		invocation.Arguments[3].ShouldBe(password);
+		invocation.Arguments[4].ShouldBe(newPassword);
 	}
 }

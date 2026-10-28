@@ -25,6 +25,15 @@
 	[Parameter]
 	public string Password { get; set; } = "aaaaaaaa";
 
+	/// <summary>
+	///     The fill value for every password input after the first (FillAndSubmit only). Defaults to
+	///     "bbbbbbbb" — a second fixture that differs from <see cref="Password" />, since the
+	///     change-password form's validator refuses a new password equal to the current one. A form
+	///     with a single password input never reads it.
+	/// </summary>
+	[Parameter]
+	public string NewPassword { get; set; } = "bbbbbbbb";
+
 	/// <summary>The story canvas this driver wraps.</summary>
 	[Parameter]
 	public RenderFragment? ChildContent { get; set; }
@@ -40,7 +49,7 @@
 			_module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Norse.DesignSystem.Stories/storyDriver.js");
 			var driven = Mode is StoryDriverMode.ClickOnly ?
 				await _module.InvokeAsync<bool>("driveClick", _root) :
-				await _module.InvokeAsync<bool>("drive", _root, Mode is StoryDriverMode.FillAndSubmit, Email, Password);
+				await _module.InvokeAsync<bool>("drive", _root, Mode is StoryDriverMode.FillAndSubmit, Email, Password, NewPassword);
 			if (!driven)
 				throw new InvalidOperationException(Mode is StoryDriverMode.ClickOnly ?
 					"StoryDriver found no button to drive." :

@@ -1,0 +1,50 @@
+@attribute [Stories("Account/Delete Personal Data")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="DeletePersonalData">
+    @* Default renders the routable page through ManageLayout; the catalog subject has a password, so the form
+       asks for it. An erasure signs the caller out, so "Deleted" begins a session transition the catalog
+       suppresses and records. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <DeletePersonalData @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* A passwordless account: the page hides the password field, and the server checks none. *@
+    <Story Name="Passwordless">
+        <Template>
+            <ScenarioScope Value="AccountScenario.ExternalOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <DeletePersonalData @key="@("delete-personal-data-passwordless")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Deleted">
+        <Template>
+            <StoryDriver @key="@("delete-personal-data-deleted")" Mode="StoryDriverMode.FillAndSubmit">
+                <DeletePersonalDataForm HasPassword="true" />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Incorrect Password">
+        <Template>
+            <ScenarioScope Value="AccountScenario.IncorrectPassword">
+                <StoryDriver @key="@("delete-personal-data-incorrect-password")" Mode="StoryDriverMode.FillAndSubmit">
+                    <DeletePersonalDataForm HasPassword="true" />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    @* A failed shred keeps its correlation reference, so an administrator can finish the erasure. *@
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("delete-personal-data-fault")" Mode="StoryDriverMode.FillAndSubmit">
+                    <DeletePersonalDataForm HasPassword="true" />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>
