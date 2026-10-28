@@ -1,0 +1,45 @@
+@attribute [Stories("Account/Generate Recovery Codes")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="GenerateRecoveryCodes">
+    @* Click-to-generate: a bare render generates nothing. Generation rotates no stamp, so the ten new codes
+       render in place through the shared panel -- no navigation and no transition. An account with two-factor
+       off is the server's Validation answer, rendered in place. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <GenerateRecoveryCodes @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Generated">
+        <Template>
+            <StoryDriver @key="@("generate-recovery-codes-generated")" Mode="StoryDriverMode.ClickOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <GenerateRecoveryCodes @key="@("generate-recovery-codes-generated")" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Two-Factor Disabled">
+        <Template>
+            <ScenarioScope Value="AccountScenario.TwoFactorDisabled">
+                <StoryDriver @key="@("generate-recovery-codes-two-factor-disabled")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <GenerateRecoveryCodes @key="@("generate-recovery-codes-two-factor-disabled")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("generate-recovery-codes-fault")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <GenerateRecoveryCodes @key="@("generate-recovery-codes-fault")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

@@ -169,6 +169,52 @@ test("driveClick clicks the story's button and resolves only after the observer 
 	assert.equal(clicks, 1);
 });
 
+// A click whose outcome leaves the canvas untouched (a suppressed transition, a file download) is still a
+// driven click: the click driver settles on the quiet window alone, without waiting for a mutation.
+test("driveClick resolves when the click changes nothing", async () => {
+	let clicks = 0;
+	const root = {
+		observer: undefined,
+		querySelector() {
+			return button;
+		}
+	};
+	const button = {
+		click() {
+			clicks++;
+		}
+	};
+
+	const driven = await driveClick(root);
+
+	assert.equal(driven, true);
+	assert.equal(clicks, 1);
+});
+
+// A submit still owes the canvas its result: a form whose submit renders nothing rejects after the timeout.
+test("driveSubmit still rejects when nothing settles", async () => {
+	const root = {
+		observer: undefined,
+		querySelector(selector) {
+			assert.equal(selector, "form");
+			return form;
+		}
+	};
+	const form = {
+		addEventListener() {
+		},
+		querySelectorAll() {
+			return [];
+		},
+		requestSubmit() {
+		}
+	};
+
+	await assert.rejects(
+		drive(root, false, "designer@example.com", "aaaaaaaa", "bbbbbbbb"),
+		/StoryDriver observed no settled post-submit DOM activity\./);
+});
+
 test("driveClick resolves false when no button ever appears", async () => {
 	const root = {
 		observer: undefined,

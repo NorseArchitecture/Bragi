@@ -24,6 +24,12 @@ nothing here accumulates state. A story renders the same way every time you load
 | `InvalidRecoveryCode` | Recovery Code Sign-In wrong recovery code | "Invalid recovery code entered." — recast locally the same way |
 | `InvalidResetToken` | Reset Password invalid or expired emailed code | "The reset link is invalid or has expired." — recast locally the same way |
 | `EmailConfirmationFailed` | Confirm Email / Confirm Email Change rejection | The panel's own "Error confirming your email." / "Error changing email." over the fake's "The confirmation link is invalid or has expired." |
+| `ExternalProviders` | The sign-in links with an external provider offered | One provider, "Example provider", started at `/Account/PerformExternalLogin?provider=Example&returnUrl=%2F`; a manual Login submit signs in like `Success`, and it applies to no other write |
+
+The sign-in links (`SignInMethodLinks`, on Login and Login With Passkey) answer every scenario, `Fault`
+included, in the server's shape for the resolved landing: `/Account/Login?returnUrl=%2F` and
+`/Account/LoginWithPasskey?returnUrl=%2F`. Passkey sign-in answers `Success` (the landing), `InvalidCredentials`,
+`LockedOut` and `Fault`; its request options fault only under `Fault`.
 
 ### Train 1 surfaces
 
@@ -71,8 +77,9 @@ a write story still loads its form; each write answers only the scenarios that a
 | `TwoFactorDisabled` / `RecoveryCodesLow` / `NoPasskeys` | Status variants for Train 3's two-factor and passkey pages | Two-factor off with no authenticator and no codes / one code left / no passkeys |
 | `IncorrectPassword` | Change Password and Delete Personal Data wrong current password | "Incorrect password." — on `OldPassword` for Change Password, in the summary for Delete Personal Data |
 | `PasswordPolicy` | Change Password and Set Password policy rejection | `NewPassword`: "Passwords must have at least one digit ('0'-'9')." |
-| `InvalidVerificationCode` | Train 3's authenticator setup | Applies to no Train 2 method |
-| `Fault` | Unmapped failure | The catalog correlation reference on every write; External Logins faults on its load instead, rendering "Your external logins could not be loaded." with no reference. Delete Personal Data's shred failure keeps its own line, "Your account could not be fully deleted. The failure has been logged for an administrator to finish." |
+| `InvalidVerificationCode` | Enable Authenticator wrong code | `Code`: "Verification code is invalid." |
+| `MachineRemembered` | Two-Factor Authentication with this browser remembered | The `Success` status with `IsMachineRemembered = true`, so the page offers "Forget this browser"; applies to no write but the forget |
+| `Fault` | Unmapped failure | The catalog correlation reference on every write; External Logins faults on its load instead, rendering "Your external logins could not be loaded." with no reference. Delete Personal Data's shred failure keeps its own line, "Your account could not be fully deleted. The failure has been logged for an administrator to finish." The Train 3 pages render their own fallback line instead (below) |
 
 ## Identity scenarios
 
@@ -109,12 +116,49 @@ The account-core surfaces under `Account/` drive these scenarios. The Manage pag
 | External Logins → External Only / Fault | `ExternalOnly` / `Fault` | — (the page's own load; Fault is a load fault, rendering "Your external logins could not be loaded." with no correlation reference) |
 | Delete Personal Data → Passwordless | `ExternalOnly` | — |
 | Delete Personal Data → Deleted / Incorrect Password / Fault | `Success` / `IncorrectPassword` / `Fault` | `FillAndSubmit` |
+| External Logins → Removed | `Success` | `ClickOnly` (the removal is a suppressed transition; the canvas stays as it was) |
+| Personal Data → Download | `Success` | `ClickOnly` (saves `PersonalData.json` each time the story loads) |
 
 Every "Validation Errors" story is `SubmitOnly`. Profile, Change Password, Set Password and Delete Personal
 Data succeed by a suppressed session transition, so their success stories keep the submitted form; Email
-succeeds in place. External Logins stages no "Removed" story and Personal Data no "Download" story: a
-suppressed removal and a file download both leave the canvas identical to "Default" (the Logout precedent),
-so `DrivenStoryNavigationTests` is where both states live.
+succeeds in place. External Logins → Removed and Personal Data → Download leave the canvas identical to
+"Default" — a suppressed removal and a file download — and stage anyway, because the click driver settles
+without a mutation (T3-7); `DrivenStoryNavigationTests` holds the recorded transition and the clicked download.
+
+### Train 3 surfaces
+
+The two-factor and passkey pages under `Account/`, and Login With Passkey, drive or pin these scenarios. The
+two-factor and passkey fakes (`FakeTwoFactorService`, `FakePasskeyService`) ride `AccountScenario`; the sign-in
+links and passkey sign-in (`FakeSignInMethodsService`) ride `AuthenticationScenario`.
+
+| Story | Scenario | Driver |
+|---|---|---|
+| Two-Factor Authentication → Default / Two-Factor Disabled / Recovery Codes Low / Fault | `Success` / `TwoFactorDisabled` / `RecoveryCodesLow` / `Fault` | — (the page's own status load; Fault is a load fault) |
+| Two-Factor Authentication → Forget This Browser | `MachineRemembered` | `ClickOnly` → suppressed transition to `/Account/Manage/TwoFactorAuthentication?status=browser-forgotten` |
+| Enable Authenticator → Verified | `Success` | `FillAndSubmit`, `Email = "123456"` (the code is the form's only text input) → suppressed transition to `/Account/Manage/TwoFactorAuthentication?status=authenticator-verified` |
+| Enable Authenticator → Invalid Code | `InvalidVerificationCode` | `FillAndSubmit`, `Email = "123456"` |
+| Enable Authenticator → Fault | `Fault` | — (a load fault: no form is offered) |
+| Recovery Codes Handoff → Default / Revealed | `Success` | — (the bare route; the shared panel with the ten codes under the verified status) |
+| Reset Authenticator → Reset / Two-Factor Disabled | `Success` / `TwoFactorDisabled` | `ClickOnly` → suppressed transition to `/Account/Manage/EnableAuthenticator?status=authenticator-reset` |
+| Reset Authenticator → Fault | `Fault` | `ClickOnly` |
+| Disable 2FA → Disabled | `Success` | `ClickOnly` → suppressed transition to `/Account/Manage/TwoFactorAuthentication?status=two-factor-disabled` |
+| Disable 2FA → Not Enabled / Fault | `TwoFactorDisabled` / `Fault` | `ClickOnly` ("Two-factor authentication is not enabled.") |
+| Generate Recovery Codes → Generated | `Success` | `ClickOnly` → the ten codes in place, "You have generated new recovery codes." |
+| Generate Recovery Codes → Two-Factor Disabled / Fault | `TwoFactorDisabled` / `Fault` | `ClickOnly` ("Cannot generate recovery codes because two-factor authentication is not enabled.") |
+| Passkeys → Default / No Passkeys / Fault | `Success` / `NoPasskeys` / `Fault` | none (Add and Delete run live; Add is a real WebAuthn ceremony) |
+| Rename Passkey → Default | `Success` | — (the page loads "Work laptop" by its rename id) |
+| Rename Passkey → Fault | `Fault` | `FillAndSubmit` over the form, `Email = "Home desktop"` (the name is the form's only text input) |
+| Login With Passkey → Default / Fault | `Success` / `Fault` | none (WebAuthn); under `Fault` a click on "Use a passkey" renders the faulted options read before any ceremony |
+| Login → External Providers | `ExternalProviders` | — (the provider link is the state) |
+
+The Train 3 pages render their own fallback line for a fault ("Your authenticator key could not be reset.",
+"Your recovery codes could not be generated.", …) with no correlation reference; Rename Passkey's form keeps the
+reference in its summary. Enable Authenticator under `TwoFactorDisabled` answers the recovery-code handoff hop,
+`/Account/Manage/ShowRecoveryCodes?handoff=story-handoff`, since that account holds no codes; no story stages it,
+because it renders identically to "Verified". Three states have no story, because the canvas cannot reach them
+without navigating out of the story: the handoff page's own reveal and its fault (the handoff rides the query, and
+the page strips it by navigating), and a passkey rename's success (a soft navigation, the Forgot Password shape).
+`DrivenStoryNavigationTests` holds all three, over the page itself and the fake's own handoff hop.
 
 ## The playground sentinel
 
@@ -129,6 +173,9 @@ States that only exist after a submit (`Locked Out`, `Invalid Password`, …) ar
 later password field) into every enabled text input and submits the form after first render — the Storybook
 play-function idiom, with zero changes to shipping components. A disabled input is a read-only display, so
 the driver leaves its value alone.
-Click-to-confirm surfaces (Logout, Confirm Email, Confirm Email Change) are driven by `ClickOnly`, which
-clicks the story's first button instead. `ClickOnly` requires the click to change the page: a click whose
-success is only a suppressed transition or a saved file gets no story, and a bUnit fact holds its state.
+Click-to-confirm surfaces (Logout, Confirm Email, Confirm Email Change, External Logins, Personal Data and the
+Train 3 two-factor pages) are driven by `ClickOnly`, which clicks the story's first button instead. A click need
+not change the page (T3-7): a suppressed transition or a saved file leaves the canvas as it was, so the click
+settles once its minimum and quiet windows pass, and a bUnit fact holds what the click recorded. A submit still
+owes the canvas its result and fails after five seconds without one. A play function that rejects marks the
+driver `failed`, with the reason in `data-failure-reason`, instead of tearing down the canvas.

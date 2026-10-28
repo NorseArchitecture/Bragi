@@ -1,0 +1,46 @@
+@attribute [Stories("Account/Disable 2FA")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="Disable2fa">
+    @* Click-to-disable: a bare render disables nothing, and the page loads nothing either. Disabling rotates the
+       stamp, so success begins a session transition the catalog suppresses and records; the canvas stays as it
+       was, and DrivenStoryNavigationTests holds the hop. An account with two-factor already off is the server's
+       Validation answer on the click, rendered in place. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <Disable2fa @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Disabled">
+        <Template>
+            <StoryDriver @key="@("disable-2fa-disabled")" Mode="StoryDriverMode.ClickOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <Disable2fa @key="@("disable-2fa-disabled")" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Not Enabled">
+        <Template>
+            <ScenarioScope Value="AccountScenario.TwoFactorDisabled">
+                <StoryDriver @key="@("disable-2fa-not-enabled")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <Disable2fa @key="@("disable-2fa-not-enabled")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("disable-2fa-fault")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <Disable2fa @key="@("disable-2fa-fault")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

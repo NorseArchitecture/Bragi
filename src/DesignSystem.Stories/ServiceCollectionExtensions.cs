@@ -7,10 +7,12 @@ using Norse.AuthN.Services;
 using Norse.DesignSystem.Stories.Account;
 using Norse.DesignSystem.Stories.Authentication;
 using Norse.DesignSystem.Stories.Identity;
+using Norse.DesignSystem.Stories.Passkeys;
 using Norse.DesignSystem.Stories.Reference;
 using Norse.DesignSystem.Stories.Scenarios;
 using Norse.DesignSystem.Stories.Session;
 using Norse.DesignSystem.Stories.Shell;
+using Norse.DesignSystem.Stories.TwoFactor;
 using Norse.Reference;
 using Norse.Reference.Components;
 
@@ -26,7 +28,9 @@ public static class ServiceCollectionExtensions
 	extension(IServiceCollection services)
 	{
 		/// <summary>
-		///     Registers the catalog's fake <see cref="IAuthenticationService" />, <see cref="IAccountService" />,
+		///     Registers the catalog's fake <see cref="IAuthenticationService" /> (with <see cref="ISignInMethodsService" />
+		///     beside it, under the same scenario), <see cref="IAccountService" /> (with <see cref="ITwoFactorService" /> and
+		///     <see cref="IPasskeyService" /> beside it, under the account tier's scenario),
 		///     <see cref="IIdentityService" />, <see cref="IReferenceService" /> and
 		///     <see cref="AuthenticationStateProvider" />, each with its own ambient
 		///     <see cref="Scenario{TScenario}" /> (initialized to the family's happy-path member) so their
@@ -47,6 +51,7 @@ public static class ServiceCollectionExtensions
 			services
 				.AddScoped(static _ => new Scenario<AuthenticationScenario>(AuthenticationScenario.Success))
 				.AddScoped<IAuthenticationService, FakeAuthenticationService>()
+				.AddScoped<ISignInMethodsService, FakeSignInMethodsService>()
 				.AddScoped<RecordingSessionTransition>()
 				.AddScoped<ISessionTransition>(static provider => provider.GetRequiredService<RecordingSessionTransition>())
 				.AddScoped<IValidator<LoginRequest>, LoginRequestValidator>()
@@ -66,6 +71,15 @@ public static class ServiceCollectionExtensions
 				.AddScoped<IValidator<ChangeEmailRequest>, ChangeEmailRequestValidator>()
 				.AddScoped<IValidator<RemoveExternalLoginRequest>, RemoveExternalLoginRequestValidator>()
 				.AddScoped<IValidator<DeletePersonalDataRequest>, DeletePersonalDataRequestValidator>()
+				.AddScoped<ITwoFactorService, FakeTwoFactorService>()
+				.AddScoped<IPasskeyService, FakePasskeyService>()
+				.AddScoped<IValidator<EnableAuthenticatorRequest>, EnableAuthenticatorRequestValidator>()
+				.AddScoped<IValidator<RevealRecoveryCodesRequest>, RevealRecoveryCodesRequestValidator>()
+				.AddScoped<IValidator<GetPasskeyRequest>, GetPasskeyRequestValidator>()
+				.AddScoped<IValidator<AddPasskeyRequest>, AddPasskeyRequestValidator>()
+				.AddScoped<IValidator<RenamePasskeyRequest>, RenamePasskeyRequestValidator>()
+				.AddScoped<IValidator<RemovePasskeyRequest>, RemovePasskeyRequestValidator>()
+				.AddScoped<IValidator<PasskeySignInRequest>, PasskeySignInRequestValidator>()
 				.AddScoped(static _ => new Scenario<IdentityScenario>(IdentityScenario.Success))
 				.AddScoped<IIdentityService, FakeIdentityService>()
 				.AddScoped(static _ => new Scenario<SessionScenario>(SessionScenario.SignedIn))

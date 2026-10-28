@@ -1,0 +1,55 @@
+@attribute [Stories("Account/Two-Factor Authentication")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="TwoFactorAuthentication">
+    @* The page loads the account status and branches on it: the Success account has two-factor on, an
+       authenticator and three recovery codes left, so Default shows the low-codes warning's "3 left" line. Each
+       status variant keys the page so it loads its own scenario's status. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <TwoFactorAuthentication @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Two-Factor Disabled">
+        <Template>
+            <ScenarioScope Value="AccountScenario.TwoFactorDisabled">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <TwoFactorAuthentication @key="@("two-factor-authentication-disabled")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Recovery Codes Low">
+        <Template>
+            <ScenarioScope Value="AccountScenario.RecoveryCodesLow">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <TwoFactorAuthentication @key="@("two-factor-authentication-codes-low")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    @* Only a remembered machine is offered the forget, and it is the page's one button. Forgetting drops the
+       remember-machine cookie on a document load, so it begins a session transition the catalog suppresses and
+       records: the click driver settles without a mutation, and DrivenStoryNavigationTests holds the hop. *@
+    <Story Name="Forget This Browser">
+        <Template>
+            <ScenarioScope Value="AccountScenario.MachineRemembered">
+                <StoryDriver @key="@("two-factor-authentication-forget")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <TwoFactorAuthentication @key="@("two-factor-authentication-forget")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <TwoFactorAuthentication @key="@("two-factor-authentication-fault")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

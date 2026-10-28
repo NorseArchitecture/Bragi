@@ -1,0 +1,25 @@
+@attribute [Stories("Authentication/Login With Passkey")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="LoginWithPasskey">
+    @* The page asks the browser whether it can run a ceremony, then offers "Use a passkey", which runs a real
+       WebAuthn assertion in the canvas, so no story drives it. The sign-in links come from the server's shape
+       through FakeSignInMethodsService. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(GateLayout)">
+                <LoginWithPasskey @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* The faulted options read answers the click before any ceremony runs: click "Use a passkey" to see the fault.
+       DrivenStoryNavigationTests holds that it records nothing. *@
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AuthenticationScenario.Fault">
+                <LayoutView Layout="typeof(GateLayout)">
+                    <LoginWithPasskey @key="@("login-with-passkey-fault")" />
+                </LayoutView>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

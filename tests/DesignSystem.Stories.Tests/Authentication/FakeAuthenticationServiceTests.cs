@@ -49,6 +49,15 @@ public sealed class FakeAuthenticationServiceTests
 		success.Value.NextUrl.ShouldBe("/");
 	}
 
+	// ExternalProviders only adds a provider link beside the form; a manual submit on that story signs in like Success.
+	[Fact]
+	async Task Login_under_ExternalProviders_returns_the_root_next_url()
+	{
+		var outcome = await CreateFake(AuthenticationScenario.ExternalProviders).Login(AnyLogin(), TestContext.Current.CancellationToken);
+		outcome.TryGetValue(out Success<NavigationResult> success).ShouldBeTrue();
+		success.Value.NextUrl.ShouldBe("/");
+	}
+
 	[Fact]
 	async Task Login_under_Success_still_honors_the_playground_sentinel_email()
 	{
@@ -426,4 +435,47 @@ public sealed class FakeAuthenticationServiceTests
 	async Task ResendEmailConfirmation_under_an_inapplicable_scenario_throws_the_authoring_error() =>
 		await Should.ThrowAsync<InvalidOperationException>(() =>
 			CreateFake(AuthenticationScenario.EmailConfirmationFailed).ResendEmailConfirmation(AnyResendEmailConfirmation(), TestContext.Current.CancellationToken));
+
+	// One story host serves every circuit, so no answer may share state with the next: the error arrays are mutable,
+	// and every answer is built afresh.
+	[Fact]
+	async Task A_caller_mutating_an_answer_never_changes_the_next_one()
+	{
+		var cancellation = TestContext.Current.CancellationToken;
+		Problem[] mutated =
+		[
+			ProblemOf(await CreateFake(AuthenticationScenario.InvalidCredentials).Login(AnyLogin(), cancellation)),
+			ProblemOf(await CreateFake(AuthenticationScenario.LockedOut).Login(AnyLogin(), cancellation)),
+			ProblemOf(await CreateFake(AuthenticationScenario.InvalidTwoFactorCode).TwoFactorSignIn(AnyTwoFactor(), cancellation)),
+			ProblemOf(await CreateFake(AuthenticationScenario.InvalidRecoveryCode).RecoveryCodeSignIn(AnyRecoveryCode(), cancellation)),
+			ProblemOf(await CreateFake(AuthenticationScenario.InvalidResetToken).ResetPassword(AnyResetPassword(), cancellation)),
+			ProblemOf(await CreateFake(AuthenticationScenario.EmailConfirmationFailed).ConfirmEmail(AnyConfirmEmail(), cancellation)),
+		];
+		foreach (var problem in mutated)
+			problem.Errors[string.Empty][0] = "mutated";
+		ProblemOf(await CreateFake(AuthenticationScenario.RegistrationValidation).Register(AnyRegister(), cancellation))
+			.Errors[nameof(RegisterRequest.Password)][0] = "mutated";
+
+		ProblemOf(await CreateFake(AuthenticationScenario.InvalidCredentials).Login(AnyLogin(), cancellation))
+			.Errors[string.Empty].ShouldBe(["Invalid email or password."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.LockedOut).Login(AnyLogin(), cancellation))
+			.Errors[string.Empty].ShouldBe(["This account is locked out. Try again later or reset your password."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.InvalidTwoFactorCode).TwoFactorSignIn(AnyTwoFactor(), cancellation))
+			.Errors[string.Empty].ShouldBe(["Invalid authenticator code."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.InvalidRecoveryCode).RecoveryCodeSignIn(AnyRecoveryCode(), cancellation))
+			.Errors[string.Empty].ShouldBe(["Invalid recovery code entered."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.InvalidResetToken).ResetPassword(AnyResetPassword(), cancellation))
+			.Errors[string.Empty].ShouldBe(["The reset link is invalid or has expired."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.EmailConfirmationFailed).ConfirmEmail(AnyConfirmEmail(), cancellation))
+			.Errors[string.Empty].ShouldBe(["The confirmation link is invalid or has expired."]);
+		ProblemOf(await CreateFake(AuthenticationScenario.RegistrationValidation).Register(AnyRegister(), cancellation))
+			.Errors[nameof(RegisterRequest.Password)][0].ShouldBe("Passwords must have at least one non alphanumeric character.");
+	}
+
+	static Problem ProblemOf<T>(Outcome<T> outcome)
+		where T : notnull
+	{
+		outcome.TryGetValue(out Failed failed).ShouldBeTrue();
+		return failed.Problem;
+	}
 }

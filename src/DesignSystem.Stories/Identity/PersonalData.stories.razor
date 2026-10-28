@@ -2,13 +2,23 @@
 @using Microsoft.AspNetCore.Components
 <Stories TComponent="PersonalData">
     @* Download is a self-disclosure call through FakeIdentityService, materialized client-side as
-       PersonalData.json. The click changes nothing in the canvas -- it only saves a file -- so no driven
-       "Download" story is staged: it would render identically to Default and save a file on every load. *@
+       PersonalData.json. *@
     <Story Name="Default">
         <Template>
             <LayoutView Layout="typeof(ManageLayout)">
                 <PersonalData @attributes="context.Args" />
             </LayoutView>
+        </Template>
+    </Story>
+    @* The click only saves a file, so the canvas stays as it was -- the click driver settles without a
+       mutation -- and the story saves PersonalData.json each time it loads. *@
+    <Story Name="Download">
+        <Template>
+            <StoryDriver @key="@("personal-data-download")" Mode="StoryDriverMode.ClickOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <PersonalData />
+                </LayoutView>
+            </StoryDriver>
         </Template>
     </Story>
 </Stories>

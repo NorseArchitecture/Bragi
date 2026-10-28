@@ -1,0 +1,46 @@
+@attribute [Stories("Account/Reset Authenticator")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="ResetAuthenticator">
+    @* Click-to-reset: a bare render resets nothing. The reset disables two-factor and rotates the stamp, so
+       success begins a session transition the catalog suppresses and records, and the canvas stays as it was --
+       the click driver settles without a mutation, and DrivenStoryNavigationTests holds the hop. The handler
+       refuses nothing, so a two-factor-disabled account resets the same way. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <ResetAuthenticator @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    <Story Name="Reset">
+        <Template>
+            <StoryDriver @key="@("reset-authenticator-reset")" Mode="StoryDriverMode.ClickOnly">
+                <LayoutView Layout="typeof(ManageLayout)">
+                    <ResetAuthenticator @key="@("reset-authenticator-reset")" />
+                </LayoutView>
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Two-Factor Disabled">
+        <Template>
+            <ScenarioScope Value="AccountScenario.TwoFactorDisabled">
+                <StoryDriver @key="@("reset-authenticator-two-factor-disabled")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <ResetAuthenticator @key="@("reset-authenticator-two-factor-disabled")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("reset-authenticator-fault")" Mode="StoryDriverMode.ClickOnly">
+                    <LayoutView Layout="typeof(ManageLayout)">
+                        <ResetAuthenticator @key="@("reset-authenticator-fault")" />
+                    </LayoutView>
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>
