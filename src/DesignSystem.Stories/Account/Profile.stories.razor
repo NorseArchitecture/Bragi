@@ -1,0 +1,39 @@
+@attribute [Stories("Account/Profile")]
+@using Microsoft.AspNetCore.Components
+<Stories TComponent="Norse.AuthN.Components.FluentUI.Manage.Index">
+    @* Default renders the routable page through ManageLayout, which nests the catalog's StoryShellLayout, so
+       the loader reaches the form through FakeIdentityService. The driven states render ProfileForm itself
+       with the catalog subject's facts. A save rotates the security stamp, so "Saved" begins a session
+       transition the catalog suppresses and records -- the canvas keeps the submitted form. *@
+    <Story Name="Default">
+        <Template>
+            <LayoutView Layout="typeof(ManageLayout)">
+                <Norse.AuthN.Components.FluentUI.Manage.Index @attributes="context.Args" />
+            </LayoutView>
+        </Template>
+    </Story>
+    @* The stored number arrives without its country code, so the untouched submit is the rejection. *@
+    <Story Name="Validation Errors">
+        <Template>
+            <StoryDriver @key="@("profile-validation-errors")" Mode="StoryDriverMode.SubmitOnly">
+                <ProfileForm Email="designer@example.com" PhoneNumber="5551234567" />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Saved">
+        <Template>
+            <StoryDriver @key="@("profile-saved")" Mode="StoryDriverMode.FillAndSubmit" Email="+15551234567">
+                <ProfileForm Email="designer@example.com" />
+            </StoryDriver>
+        </Template>
+    </Story>
+    <Story Name="Fault">
+        <Template>
+            <ScenarioScope Value="AccountScenario.Fault">
+                <StoryDriver @key="@("profile-fault")" Mode="StoryDriverMode.FillAndSubmit" Email="+15551234567">
+                    <ProfileForm Email="designer@example.com" />
+                </StoryDriver>
+            </ScenarioScope>
+        </Template>
+    </Story>
+</Stories>

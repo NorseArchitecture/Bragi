@@ -73,11 +73,74 @@ test("drive submits only the form beneath its supplied story root", async () => 
 		}
 	};
 
-	const driven = await drive(currentRoot, false, "designer@example.com", "aaaaaaaa");
+	const driven = await drive(currentRoot, false, "designer@example.com", "aaaaaaaa", "bbbbbbbb");
 
 	assert.equal(driven, true);
 	assert.equal(currentSubmissions, 1);
 	assert.equal(staleSubmissions, 0);
+});
+
+function inputOfType(type) {
+	return {
+		value: "",
+		getAttribute(name) {
+			assert.equal(name, "type");
+			return type;
+		},
+		dispatchEvent() {
+			return true;
+		}
+	};
+}
+
+function rootWithInputs(inputs) {
+	const root = {
+		observer: undefined,
+		querySelector(selector) {
+			assert.equal(selector, "form");
+			return form;
+		}
+	};
+	const form = formOwnedBy(root);
+	form.querySelectorAll = selector => selector === "input" ? inputs : [];
+	return root;
+}
+
+test("drive fills the first password input with the password and every later one with the new password", async () => {
+	const email = inputOfType("email");
+	const current = inputOfType("password");
+	const replacement = inputOfType("password");
+	const confirmation = inputOfType("password");
+
+	const driven = await drive(rootWithInputs([email, current, replacement, confirmation]), true, "designer@example.com", "aaaaaaaa", "bbbbbbbb");
+
+	assert.equal(driven, true);
+	assert.equal(email.value, "designer@example.com");
+	assert.equal(current.value, "aaaaaaaa");
+	assert.equal(replacement.value, "bbbbbbbb");
+	assert.equal(confirmation.value, "bbbbbbbb");
+});
+
+test("drive fills a single password input with the password, unchanged by the new password", async () => {
+	const email = inputOfType("email");
+	const password = inputOfType("password");
+
+	const driven = await drive(rootWithInputs([email, password]), true, "designer@example.com", "aaaaaaaa", "bbbbbbbb");
+
+	assert.equal(driven, true);
+	assert.equal(email.value, "designer@example.com");
+	assert.equal(password.value, "aaaaaaaa");
+});
+
+test("drive leaves a disabled input's read-only value untouched", async () => {
+	const readOnly = { ...inputOfType("text"), value: "designer@example.com", disabled: true };
+	const phone = inputOfType("text");
+
+	const driven = await drive(rootWithInputs([readOnly, phone]), true, "+15551234567", "aaaaaaaa", "bbbbbbbb");
+
+	assert.equal(driven, true);
+	assert.equal(readOnly.value, "designer@example.com");
+	assert.equal(phone.value, "+15551234567");
 });
 
 test("driveClick clicks the story's button and resolves only after the observer settles", async () => {

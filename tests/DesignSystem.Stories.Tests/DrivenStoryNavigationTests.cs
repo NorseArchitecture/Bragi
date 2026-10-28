@@ -1,11 +1,14 @@
 using Bunit;
 using Bunit.TestDoubles;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.FluentUI.AspNetCore.Components;
 using Norse.AuthN.Components;
 using Norse.AuthN.Components.FluentUI;
+using Norse.AuthN.Components.FluentUI.Manage;
 using Norse.AuthN.Services;
 using Norse.Reference.Components.FluentUI;
+using Norse.DesignSystem.Stories.Account;
 using Norse.DesignSystem.Stories.Authentication;
 using Norse.DesignSystem.Stories.Reference;
 using Norse.DesignSystem.Stories.Scenarios;
@@ -348,6 +351,154 @@ public sealed class DrivenStoryNavigationTests : BunitContext
 
 		Navigation.History.ShouldBeEmpty();
 		SessionTransitions.Transitions.ShouldBeEmpty();
+	}
+
+	// Train 2 surfaces. ProfileForm, ChangePasswordForm, SetPasswordForm, ExternalLogins and
+	// DeletePersonalDataForm refresh or end the sign-in, so their Success arms begin a session transition the
+	// catalog suppresses and records -- the Login lock. ChangeEmailForm only sends a link: Success renders in
+	// place and navigates nowhere.
+	[Fact]
+	async Task A_profile_save_records_one_transition_and_no_history()
+	{
+		var story = Render<ProfileForm>(parameters => parameters
+			.Add(form => form.Email, "designer@example.com")
+			.Add(form => form.PhoneNumber, ""));
+		// The phone is the form's only editable text input; the read-only email precedes it.
+		await story.FindAll("fluent-text-input")[1].ChangeAsync(new() { Value = "+15551234567" });
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/Manage?status=phone-updated");
+	}
+
+	[Fact]
+	async Task A_change_password_success_records_one_transition()
+	{
+		var story = Render<ChangePasswordForm>();
+		Fill(story, "aaaaaaaa", "bbbbbbbb");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/Manage/ChangePassword?status=password-changed");
+	}
+
+	[Theory]
+	[InlineData(AccountScenario.IncorrectPassword, "Incorrect password.")]
+	[InlineData(AccountScenario.PasswordPolicy, "Passwords must have at least one digit")]
+	[InlineData(AccountScenario.Fault, "0badc0de-0bad-c0de-0bad-c0de0badc0de")]
+	async Task A_pinned_change_password_story_renders_its_state_without_navigating(AccountScenario scenario, string expected)
+	{
+		var story = Render<ScenarioScope<AccountScenario>>(parameters => parameters
+			.Add(scope => scope.Value, scenario)
+			.AddChildContent<ChangePasswordForm>());
+		Fill(story, "aaaaaaaa", "bbbbbbbb");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		story.WaitForAssertion(() => story.Markup.ShouldContain(expected));
+	}
+
+	// SetPassword / "Set" -- staged under ExternalOnly, the account that actually sets a password.
+	[Fact]
+	async Task A_set_password_success_records_one_transition()
+	{
+		var story = Render<ScenarioScope<AccountScenario>>(parameters => parameters
+			.Add(scope => scope.Value, AccountScenario.ExternalOnly)
+			.AddChildContent<SetPasswordForm>());
+		Fill(story, "aaaaaaaa");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/Manage/ChangePassword?status=password-set");
+	}
+
+	[Fact]
+	async Task A_change_email_success_renders_in_place_with_no_navigation()
+	{
+		var story = Render<ChangeEmailForm>(parameters => parameters
+			.Add(form => form.Email, "designer@example.com")
+			.Add(form => form.EmailConfirmed, true));
+		// The new email is the form's only text input; the read-only current email sits above the form.
+		await story.FindAll("fluent-text-input")[1].ChangeAsync(new() { Value = "new@example.com" });
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		story.WaitForAssertion(() => story.Markup.ShouldContain("Confirmation link to change email sent. Please check your email."));
+	}
+
+	[Fact]
+	void Removing_an_external_login_records_one_transition()
+	{
+		var page = Render<ExternalLogins>();
+
+		page.Find("fluent-button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/Account/Manage/ExternalLogins?status=external-login-removed");
+	}
+
+	[Fact]
+	void An_external_only_account_renders_no_remove_button()
+	{
+		var story = Render<ScenarioScope<AccountScenario>>(parameters => parameters
+			.Add(scope => scope.Value, AccountScenario.ExternalOnly)
+			.AddChildContent<ExternalLogins>());
+
+		story.Markup.ShouldContain("Google");
+		story.FindAll("fluent-button").ShouldBeEmpty();
+	}
+
+	[Fact]
+	async Task A_delete_personal_data_success_records_one_transition()
+	{
+		var story = Render<DeletePersonalDataForm>(parameters => parameters.Add(form => form.HasPassword, true));
+		Fill(story, "aaaaaaaa");
+
+		await story.Find("form").SubmitAsync();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldHaveSingleItem().NextUrl.ShouldBe("/");
+	}
+
+	// The download only saves a file, so the catalog stages no driven "Download" story -- this fact is
+	// where that state lives: the click hands the catalog subject to the download module and navigates nowhere.
+	[Fact]
+	void A_personal_data_download_saves_the_subject_without_navigating()
+	{
+		var module = JSInterop.SetupModule("./_content/Norse.AuthN.Components.FluentUI/downloadFile.js");
+		module.SetupVoid("downloadJson", _ => true).SetVoidResult();
+		var page = Render<PersonalData>();
+
+		page.Find("fluent-button").Click();
+
+		Navigation.History.ShouldBeEmpty();
+		SessionTransitions.Transitions.ShouldBeEmpty();
+		page.WaitForAssertion(() =>
+		{
+			var invocation = module.VerifyInvoke("downloadJson");
+			invocation.Arguments[0].ShouldBe("PersonalData.json");
+			invocation.Arguments[1].ShouldBeOfType<PersonalDataResponse>().Email.ShouldBe("designer@example.com");
+		});
+	}
+
+	// Profile / "Default" -- the page through ManageLayout, which nests the host's IAppShellLayout: the
+	// catalog's StoryShellLayout must resolve, and the loader must reach the form through the fakes.
+	[Fact]
+	void The_manage_layout_renders_through_the_story_shell()
+	{
+		var story = Render<LayoutView>(parameters => parameters
+			.Add(view => view.Layout, typeof(ManageLayout))
+			.AddChildContent<Norse.AuthN.Components.FluentUI.Manage.Index>());
+
+		story.Markup.ShouldContain("Manage your account");
+		story.Markup.ShouldContain("designer@example.com");
 	}
 
 	// Mirrors storyDriver.js: fill every text input the story exposes, in order.

@@ -75,19 +75,26 @@ function inputsOf(root) {
 	return inputs;
 }
 
-export async function drive(root, fill, email, password) {
+// The first password input gets `password`, every later one `newPassword`: a change-password form
+// refuses a new password equal to the current one, so one fixture cannot drive it.
+export async function drive(root, fill, email, password, newPassword) {
 	for (let attempt = 0; attempt < maxTries; attempt++) {
 		const form = root.querySelector("form");
 		if (form) {
-			if (fill)
+			if (fill) {
+				let passwordsFilled = 0;
 				for (const input of inputsOf(form)) {
 					const type = (input.getAttribute("type") ?? "text").toLowerCase();
 					if (type !== "text" && type !== "email" && type !== "password")
 						continue;
-					input.value = type === "password" ? password : email;
+					// A disabled input is a read-only display (the profile's email), never a field to fill.
+					if (input.disabled)
+						continue;
+					input.value = type === "password" ? (passwordsFilled++ === 0 ? password : newPassword) : email;
 					input.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
 					input.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
 				}
+			}
 			// Native constraint validation would block an empty Required form before Blazor ever saw
 			// the submit event (shadow-rooted invalid controls aren't focusable) — Blazilla owns
 			// validation in this catalog, the browser doesn't.
